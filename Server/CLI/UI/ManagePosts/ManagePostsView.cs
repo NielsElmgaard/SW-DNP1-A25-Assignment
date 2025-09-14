@@ -36,10 +36,12 @@ public class ManagePostsView
                     await createPost.AddPostAsync();
                     break;
                 case "2":
-                    // To-Do Update Post
+                    var updatePost = new UpdatePostView(_postRepository);
+                    await updatePost.UpdatePostAsync();
                     break;
                 case "3":
-                    // To-Do Delete Post
+                    var deletePost = new DeletePostView(_postRepository);
+                    await deletePost.DeletePostAsync();
                     break;
                 case "4":
                     var listPosts = new ListPostsView(_postRepository);

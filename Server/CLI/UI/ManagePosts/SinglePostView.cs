@@ -3,6 +3,7 @@ using RepositoryContracts;
 
 namespace CLI.UI.ManagePosts;
 
+// You can view a single post and afterward add/edit/delete a comment on the post
 public class SinglePostView
 {
     private readonly IPostRepository _postRepository;
@@ -89,6 +90,13 @@ public class SinglePostView
         if (!int.TryParse(input, out int userId))
         {
             Console.WriteLine("Invalid user id.");
+            return;
+        }
+
+        var userIdInList = _userRepository.GetSingleAsync(userId);
+        if (userIdInList == null)
+        {
+            Console.WriteLine("User id does not exist");
             return;
         }
 

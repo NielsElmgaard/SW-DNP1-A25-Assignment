@@ -11,25 +11,43 @@ public class CreatePostView
     {
         _postRepository = postRepository;
     }
-    
+
     public async Task AddPostAsync()
     {
-        Console.WriteLine("CREATE POST MENU");
+        Console.WriteLine("CREATE POST");
+
         Console.Write("Title: ");
-        string? title = Console.ReadLine();
-        
+        string title = Console.ReadLine();
+
         Console.Write("Body: ");
-        string? body = Console.ReadLine();
-        
-        Console.Write("User id: ");
-        string? userIdInput =Console.ReadLine();
-        if (!int.TryParse(userIdInput, out int userId))
+        string body = Console.ReadLine();
+
+        int userId;
+        while (true)
         {
-            Console.WriteLine("Invalid user id.");
-            return;
+            Console.Write("User id: ");
+            string? userIdInput = Console.ReadLine();
+
+            if (int.TryParse(userIdInput, out userId))
+            {
+                break; // valid user id
+            }
+
+            Console.WriteLine("Invalid user id");
         }
-        
-        Post post = new Post(0,title??"Unknown title", body??"No body",userId);
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = "Unknown title";
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            body = "Unknown body";
+        }
+
+        Post post = new Post(0, title, body,
+            userId);
         Post created = await _postRepository.AddAsync(post);
         Console.WriteLine($"Post with id {created.Id} successfully created");
     }

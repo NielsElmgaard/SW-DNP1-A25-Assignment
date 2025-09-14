@@ -12,17 +12,57 @@ public class CreateUserView
         _userRepository = userRepository;
     }
 
-    public async Task AddUserAsync(string? username, string? password)
+    public async Task AddUserAsync()
     {
         Console.WriteLine("CREATE USER MENU");
-        Console.Write("Username: ");
-        username = Console.ReadLine();
-        
-        Console.Write("Password: ");
-        password = Console.ReadLine();
-        
-        User user = new User(0,username??"UnknownUser", password??"1234");
+        string username;
+
+        while (true)
+        {
+            Console.Write("Username: ");
+            username = Console.ReadLine();
+
+            // Check for username already taken
+            var usersAlreadyInList = _userRepository.GetMany();
+
+            var userWithSameUsername =
+                usersAlreadyInList.FirstOrDefault(userInList =>
+                    userInList.Username == username);
+
+            if (userWithSameUsername != null)
+            {
+                Console.WriteLine("Username already taken");
+            }
+            else if (string.IsNullOrWhiteSpace(username))
+            {
+                Console.WriteLine("Username cannot be empty");
+            }
+            else
+            {
+                break; // valid username
+            }
+        }
+
+        string password;
+
+        while (true)
+        {
+            Console.Write("Password: ");
+            password = Console.ReadLine();
+
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                Console.WriteLine("Password cannot be empty");
+            }
+            else
+            {
+                break; // valid password
+            }
+        }
+
+        User user = new User(0, username, password);
         User created = await _userRepository.AddAsync(user);
-        Console.WriteLine($"User with id {created.Id} successfully created");
+        Console.WriteLine(
+            $"User ({created.Username}) with id {created.Id} successfully created");
     }
 }
