@@ -31,7 +31,8 @@ public class CliApp
             switch (Console.ReadLine())
             {
                 case "1":
-                    //To-DO
+                    var userView = new ManageUsersView(_userRepository);
+                    userView.DisplayMenu();
                     break;
                 case "2":
                     var postView = new ManagePostsView(_postRepository,
