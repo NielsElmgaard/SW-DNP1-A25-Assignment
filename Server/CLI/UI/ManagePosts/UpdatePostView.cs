@@ -14,22 +14,37 @@ public class UpdatePostView
 
     public async Task UpdatePostAsync()
     {
+        int postId;
+        Post post = null;
+        
         Console.WriteLine("UPDATE POST");
-        Console.Write("Enter post id to edit: ");
-        string? input = Console.ReadLine();
-        if (!int.TryParse(input, out int postId))
+        while (true)
         {
-            Console.WriteLine("Invalid post id.");
-            return;
+
+            Console.Write("Enter post id to edit: ");
+            string? input = Console.ReadLine();
+            if (!int.TryParse(input, out postId))
+            {
+                Console.WriteLine("Invalid post id.");
+                continue;
+            }
+
+            try
+            {
+                post = await _postRepository.GetSingleAsync(postId);
+                break;
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
-        Post post = await _postRepository.GetSingleAsync(postId);
-        
         Console.Write("New title: ");
         string? newTitle = Console.ReadLine();
 
-        post.Body = newTitle;
-        
+        post.Title = newTitle;
+
         Console.Write("New body: ");
         string? newBody = Console.ReadLine();
 
