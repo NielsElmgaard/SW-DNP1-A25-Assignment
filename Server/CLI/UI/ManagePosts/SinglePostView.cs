@@ -20,27 +20,37 @@ public class SinglePostView
 
     public async Task GetSinglePostAsync()
     {
+        int id;
+        Post? post = null;
+
         Console.WriteLine("SINGLE POST MENU");
-        Console.Write("Enter post id:");
 
-        string? input = Console.ReadLine();
-
-        if (!int.TryParse(input, out int id))
+        while (true)
         {
-            Console.WriteLine("Invalid post id.");
-            return;
-        }
+            Console.Write("Enter post id:");
 
-        Post post = await _postRepository.GetSingleAsync(id);
-        if (post == null)
-        {
-            Console.WriteLine("Post not found");
-            return;
+            string? input = Console.ReadLine();
+
+            if (!int.TryParse(input, out id))
+            {
+                Console.WriteLine("Invalid post id.");
+                continue;
+            }
+
+            try
+            {
+                post = await _postRepository.GetSingleAsync(id);
+                break;
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
         Console.WriteLine($"Title: {post.Title}\nBody: {post.Body}");
 
-        ShowCommentsAsync(id);
+        await ShowCommentsAsync(id);
 
         while (true)
         {
@@ -54,13 +64,16 @@ public class SinglePostView
             switch (Console.ReadLine())
             {
                 case "1":
-                    AddCommentAsync(id);
+                    await AddCommentAsync(id);
+                    await ShowCommentsAsync(id);
                     break;
                 case "2":
-                    EditCommentAsync(id);
+                    await EditCommentAsync(id);
+                    await ShowCommentsAsync(id);
                     break;
                 case "3":
-                    DeleteCommentAsync(id);
+                    await DeleteCommentAsync(id);
+                    await ShowCommentsAsync(id);
                     break;
                 case "0": return;
                 default:
@@ -78,26 +91,42 @@ public class SinglePostView
         Console.WriteLine("Comments:");
         foreach (var comment in comments)
         {
-            User user = await _userRepository.GetSingleAsync(comment.UserId);
+            User? user = null;
+            try
+            {
+                user = await _userRepository.GetSingleAsync(comment.UserId);
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
             Console.WriteLine($"{comment.Body} (by {user.Username})");
         }
     }
 
     private async Task AddCommentAsync(int postId)
     {
-        Console.Write("Enter user id: ");
-        string? input = Console.ReadLine();
-        if (!int.TryParse(input, out int userId))
+        int userId;
+        while (true)
         {
-            Console.WriteLine("Invalid user id.");
-            return;
-        }
+            Console.Write("Enter user id: ");
+            string? input = Console.ReadLine();
+            if (!int.TryParse(input, out userId))
+            {
+                Console.WriteLine("Invalid user id.");
+                continue;
+            }
 
-        var userIdInList = _userRepository.GetSingleAsync(userId);
-        if (userIdInList == null)
-        {
-            Console.WriteLine("User id does not exist");
-            return;
+            try
+            {
+                await _userRepository.GetSingleAsync(userId);
+                break;
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
         Console.Write("Comment body: ");
@@ -105,26 +134,41 @@ public class SinglePostView
 
         Comment comment = new Comment(0, body, postId, userId);
         Comment created = await _commentRepository.AddAsync(comment);
-        Console.WriteLine($"Comment with id {created.Id} successfully created");
+        Console.WriteLine(
+            $"Comment with id {created.Id} successfully created");
     }
 
     private async Task EditCommentAsync(int postId)
     {
-        Console.Write("Enter comment id to edit: ");
-        string? input = Console.ReadLine();
-        if (!int.TryParse(input, out int commentId))
+        int commentId;
+        Comment? comment = null;
+        while (true)
         {
-            Console.WriteLine("Invalid comment id.");
-            return;
-        }
+            Console.Write("Enter comment id to edit: ");
+            string? input = Console.ReadLine();
+            if (!int.TryParse(input, out commentId))
+            {
+                Console.WriteLine("Invalid comment id.");
+                continue;
+            }
 
-        Comment comment = await _commentRepository.GetSingleAsync(commentId);
-        if (comment == null ||
-            comment.PostId !=
-            postId) // If the comment isn't posted on this post
-        {
-            Console.WriteLine("Comment not found");
-            return;
+            try
+            {
+                comment =
+                    await _commentRepository.GetSingleAsync(commentId);
+                if (comment.PostId !=
+                    postId) // If the comment isn't posted on this post
+                {
+                    Console.WriteLine("Comment not found");
+                    continue;
+                }
+
+                break;
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
         Console.Write("New body: ");
@@ -138,24 +182,37 @@ public class SinglePostView
 
     private async Task DeleteCommentAsync(int postId)
     {
-        Console.Write("Enter comment id to delete: ");
-        string? input = Console.ReadLine();
-        if (!int.TryParse(input, out int commentId))
+        int commentId;
+        Comment? comment = null;
+        while (true)
         {
-            Console.WriteLine("Invalid comment id.");
-            return;
-        }
+            Console.Write("Enter comment id to delete: ");
+            string? input = Console.ReadLine();
+            if (!int.TryParse(input, out commentId))
+            {
+                Console.WriteLine("Invalid comment id.");
+                continue;
+            }
 
-        Comment comment = await _commentRepository.GetSingleAsync(commentId);
-        if (comment == null ||
-            comment.PostId !=
-            postId) // If the comment isn't posted on this post
-        {
-            Console.WriteLine("Comment not found");
-            return;
-        }
+            try
+            {
+                comment =
+                    await _commentRepository.GetSingleAsync(commentId);
+                if (comment.PostId !=
+                    postId) // If the comment isn't posted on this post
+                {
+                    Console.WriteLine("Comment not found");
+                    continue;
+                }
 
-        await _commentRepository.DeleteAsync(commentId);
-        Console.WriteLine("Comment deleted successfully");
+                await _commentRepository.DeleteAsync(commentId);
+                Console.WriteLine("Comment deleted successfully");
+                break;
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
     }
 }

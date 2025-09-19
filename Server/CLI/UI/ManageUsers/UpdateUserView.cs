@@ -14,22 +14,35 @@ public class UpdateUserView
 
     public async Task UpdateUserAsync()
     {
+        User? user = null;
         Console.WriteLine("UPDATE USER");
-        Console.Write("Enter user id to edit: ");
-        string? input = Console.ReadLine();
-        if (!int.TryParse(input, out int userId))
+
+        while (true)
         {
-            Console.WriteLine("Invalid user id.");
-            return;
+            Console.Write("Enter user id to edit: ");
+            string? input = Console.ReadLine();
+            if (!int.TryParse(input, out int userId))
+            {
+                Console.WriteLine("Invalid user id.");
+                continue;
+            }
+            
+            try
+            {
+                user = await _userRepository.GetSingleAsync(userId);
+                break;
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
-        User user = await _userRepository.GetSingleAsync(userId);
-        
         Console.Write("New Username: ");
         string? newUsername = Console.ReadLine();
 
         user.Username = newUsername;
-        
+
         Console.Write("New password: ");
         string? newPassword = Console.ReadLine();
 

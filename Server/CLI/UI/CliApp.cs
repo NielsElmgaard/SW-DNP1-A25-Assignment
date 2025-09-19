@@ -32,12 +32,12 @@ public class CliApp
             {
                 case "1":
                     var userView = new ManageUsersView(_userRepository);
-                    userView.DisplayMenu();
+                    await userView.DisplayMenu();
                     break;
                 case "2":
                     var postView = new ManagePostsView(_postRepository,
                         _userRepository, _commentRepository);
-                    postView.DisplayMenu();
+                   await postView.DisplayMenu();
                     break;
                 case "0":
                     return;

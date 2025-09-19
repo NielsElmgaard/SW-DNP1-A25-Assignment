@@ -6,10 +6,12 @@ namespace CLI.UI.ManagePosts;
 public class CreatePostView
 {
     private readonly IPostRepository _postRepository;
+    private readonly IUserRepository _userRepository;
 
-    public CreatePostView(IPostRepository postRepository)
+    public CreatePostView(IPostRepository postRepository, IUserRepository userRepository)
     {
         _postRepository = postRepository;
+        _userRepository = userRepository;
     }
 
     public async Task AddPostAsync()
@@ -28,12 +30,21 @@ public class CreatePostView
             Console.Write("User id: ");
             string? userIdInput = Console.ReadLine();
 
-            if (int.TryParse(userIdInput, out userId))
+            if (!int.TryParse(userIdInput, out userId))
             {
-                break; // valid user id
+                Console.WriteLine("Invalid user id");
+                continue;
             }
-
-            Console.WriteLine("Invalid user id");
+            
+            try
+            {
+                await _userRepository.GetSingleAsync(userId);
+                break;
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
         if (string.IsNullOrWhiteSpace(title))

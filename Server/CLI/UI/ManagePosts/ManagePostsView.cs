@@ -32,7 +32,7 @@ public class ManagePostsView
             switch (Console.ReadLine())
             {
                 case "1":
-                    var createPost = new CreatePostView(_postRepository);
+                    var createPost = new CreatePostView(_postRepository, _userRepository);
                     await createPost.AddPostAsync();
                     break;
                 case "2":
@@ -40,7 +40,7 @@ public class ManagePostsView
                     await updatePost.UpdatePostAsync();
                     break;
                 case "3":
-                    var deletePost = new DeletePostView(_postRepository);
+                    var deletePost = new DeletePostView(_postRepository,_commentRepository);
                     await deletePost.DeletePostAsync();
                     break;
                 case "4":
