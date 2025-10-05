@@ -1,5 +1,6 @@
 using FileRepositories;
 using RepositoryContracts;
+using WebAPI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,8 @@ builder.Services.AddScoped<ICommentRepository, CommentFileRepository>();
 
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
