@@ -13,9 +13,10 @@ public class UsersController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IMemoryCache _cache;
 
-    public UsersController(IUserRepository userRepository)
+    public UsersController(IUserRepository userRepository, IMemoryCache cache)
     {
         _userRepository = userRepository;
+        _cache = cache;
     }
 
     private async Task VerifyUserNameIsAvailableAsync(string username)
@@ -57,27 +58,128 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDTO>> UpdateUsername(int id,
         [FromBody] UserDTO request)
     {
-        
         if (id != request.Id)
         {
             return BadRequest(
                 $"The User ID in the URL ({id}) does not match the ID in the request body ({request.Id}).");
         }
+
         await VerifyUserNameIsAvailableAsync(request.Username);
 
 
         var user = await _userRepository.GetSingleAsync(id);
-        
-        if (!user.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase))
+
+        if (!user.Username.Equals(request.Username,
+                StringComparison.OrdinalIgnoreCase))
         {
             await VerifyUserNameIsAvailableAsync(request.Username);
         }
 
         User userToUpdate = new(request.Id, request.Username, user.Password);
         await _userRepository.UpdateAsync(userToUpdate);
-        
+
         CacheInvalidate(id);
-        
+
         return Ok(request);
+    }
+
+    [HttpPut("{id:int}/password")]
+    public async Task<ActionResult<UserPasswordDTO>> UpdatePassword(int id,
+        [FromBody] UserPasswordDTO request)
+    {
+        if (id != request.Id)
+        {
+            return BadRequest(
+                $"The User ID in the URL ({id}) does not match the ID in the request body ({request.Id}).");
+        }
+
+        var user = await _userRepository.GetSingleAsync(id);
+        User userToUpdate = new(user.Id, user.Username, request.Password);
+        await _userRepository.UpdateAsync(userToUpdate);
+
+        CacheInvalidate(id);
+
+        return Ok(request);
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<UserDTO>> GetUsers(
+        [FromQuery] string? startsWith,
+        [FromQuery] string? sortBy)
+    {
+        string allUsersCacheKey = "allUsers";
+        if (!_cache.TryGetValue(allUsersCacheKey,
+                out IEnumerable<User>? cachedUsers))
+        {
+            cachedUsers = _userRepository.GetMany().ToList();
+            _cache.Set(allUsersCacheKey, cachedUsers,
+                new MemoryCacheEntryOptions()
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+                });
+
+            // Filter
+            if (!string.IsNullOrWhiteSpace(startsWith))
+            {
+                cachedUsers = cachedUsers.Where(u =>
+                    u.Username.StartsWith(startsWith,
+                        StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(sortBy))
+            {
+                switch (sortBy)
+                {
+                    case "username":
+                        cachedUsers = cachedUsers.OrderBy(u => u.Username);
+                        break;
+                    case "id":
+                        cachedUsers = cachedUsers.OrderBy(u => u.Id);
+                        break;
+                }
+            }
+        }
+
+        var users = cachedUsers.Select(u => new UserDTO
+        {
+            Id = u.Id, Username = u.Username
+        }).ToList();
+
+        return Ok(users);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetSingleUserById(int id)
+    {
+        string cacheKey = $"post-{id}";
+
+        if (_cache.TryGetValue(cacheKey, out UserDTO cachedUser))
+        {
+            return Ok(cachedUser);
+        }
+
+        var user = await _userRepository.GetSingleAsync(id);
+
+        var userDto = new UserDTO()
+        {
+            Id = user.Id, Username = user.Username
+        };
+
+        _cache.Set(cacheKey, userDto, new MemoryCacheEntryOptions()
+        {
+            SlidingExpiration = TimeSpan.FromMinutes(2),
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+        });
+        return Ok(userDto);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult> DeleteUser(int id)
+    {
+        await _userRepository.DeleteAsync(id);
+
+        CacheInvalidate(id);
+
+        return NoContent();
     }
 }
