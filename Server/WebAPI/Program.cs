@@ -14,11 +14,11 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<IPostRepository, PostFileRepository>();
 builder.Services.AddScoped<IUserRepository, UserFileRepository>();
 builder.Services.AddScoped<ICommentRepository, CommentFileRepository>();
+builder.Services.AddScoped<GlobalExceptionHandlerMiddleware>();
 
 
 var app = builder.Build();
 
-app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -27,7 +27,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
