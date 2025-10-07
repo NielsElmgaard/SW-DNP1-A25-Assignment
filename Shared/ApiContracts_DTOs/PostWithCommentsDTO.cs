@@ -2,5 +2,5 @@
 
 public class PostWithCommentsDTO : PostDTO
 {
-    public List<CommentDTO> Comments { get; set; } = new List<CommentDTO>();
+    public List<CommentDTO> Comments { get; set; } = new();
 }
