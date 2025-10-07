@@ -13,14 +13,16 @@ public class PostsController : ControllerBase
 {
     private readonly IPostRepository _postRepository;
     private readonly ICommentRepository _commentRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IMemoryCache _cache;
-    private static readonly TimeSpan cacheDuration = TimeSpan.FromMinutes(5);
 
     public PostsController(IPostRepository postRepository,
-        ICommentRepository commentRepository, IMemoryCache cache)
+        ICommentRepository commentRepository, IUserRepository userRepository,
+        IMemoryCache cache)
     {
         _postRepository = postRepository;
         _commentRepository = commentRepository;
+        _userRepository = userRepository;
         _cache = cache;
     }
 
@@ -37,18 +39,20 @@ public class PostsController : ControllerBase
     {
         Post post = new(0, request.Title, request.Body, request.UserId);
         Post created = await _postRepository.AddAsync(post);
+        User author = await _userRepository.GetSingleAsync(created.UserId);
 
         // Cache invalidation
-        CacheInvalidate(0);
+        CacheInvalidate(created.Id);
 
         PostDTO dto = new()
         {
             Id = created.Id,
             Title = created.Title,
             Body = created.Body,
-            UserId = created.UserId
+            UserId = created.UserId,
+            Author = new UserDTO { Id = author.Id, Username = author.Username }
         };
-        return Created($"/Posts/{dto.Id}", created);
+        return Created($"/Posts/{dto.Id}", dto);
     }
 
     [HttpPut("{id:int}")]
@@ -73,9 +77,13 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<PostDTO>> GetPosts()
+    public async Task<ActionResult<PostDTO>> GetPosts(
+        [FromQuery] string? title,
+        [FromQuery] int? userid,
+        [FromQuery] string? authorName)
     {
         string allPostsCacheKey = "allPosts";
+
         if (!_cache.TryGetValue(allPostsCacheKey,
                 out IEnumerable<Post>? cachedPosts))
         {
@@ -87,10 +95,43 @@ public class PostsController : ControllerBase
                 });
         }
 
+        // Filter
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            cachedPosts = cachedPosts.Where(p =>
+                p.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (userid.HasValue)
+        {
+            cachedPosts = cachedPosts.Where(p => p.UserId == userid.Value);
+        }
+
+        var userIds =
+            cachedPosts.Select(p => p.UserId).Distinct(); // no duplicates
+        // Map to UserDTO
+        var users = _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
+            .Select(u => new UserDTO()
+                { Id = u.Id, Username = u.Username }).ToList();
+
+        if (!string.IsNullOrWhiteSpace(authorName))
+        {
+            var author = users.FirstOrDefault(u => u.Username == authorName);
+            if (author != null)
+            {
+                cachedPosts = cachedPosts.Where(p => p.UserId == author.Id);
+            }
+            else
+            {
+                cachedPosts = Enumerable.Empty<Post>();
+            }
+        }
+
         // Map to PostDTO using LINQ
         var posts = cachedPosts.Select(p => new PostDTO
         {
-            Id = p.Id, Title = p.Title, Body = p.Body, UserId = p.UserId
+            Id = p.Id, Title = p.Title, Body = p.Body, UserId = p.UserId,
+            Author = users.FirstOrDefault(u => u.Id == p.UserId)
         }).ToList();
 
         return Ok(posts);
@@ -109,7 +150,8 @@ public class PostsController : ControllerBase
         }
 
 
-        Post post = await _postRepository.GetSingleAsync(id);
+        var post = await _postRepository.GetSingleAsync(id);
+        var author = await _userRepository.GetSingleAsync(post.UserId);
 
 
         object dtoToCache;
@@ -127,6 +169,8 @@ public class PostsController : ControllerBase
                 Title = post.Title,
                 Body = post.Body,
                 UserId = post.UserId,
+                Author = new UserDTO
+                    { Id = author.Id, Username = author.Username },
                 Comments = comments.Select(c => new CommentDTO
                 {
                     Id = c.Id, Body = c.Body, PostId = c.PostId,
@@ -141,7 +185,9 @@ public class PostsController : ControllerBase
                 Id = post.Id,
                 Title = post.Title,
                 Body = post.Body,
-                UserId = post.UserId
+                UserId = post.UserId,
+                Author = new UserDTO
+                    { Id = author.Id, Username = author.Username }
             };
         }
 
