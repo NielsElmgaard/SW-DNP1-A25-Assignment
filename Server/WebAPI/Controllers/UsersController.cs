@@ -55,51 +55,57 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<UserDTO>> UpdateUsername(int id,
+    public async Task<ActionResult<UpdateUsernameDTO>> UpdateUsername(int id,
         [FromBody] UserDTO request)
     {
-        if (id != request.Id)
-        {
-            return BadRequest(
-                $"The User ID in the URL ({id}) does not match the ID in the request body ({request.Id}).");
-        }
-
-        await VerifyUserNameIsAvailableAsync(request.Username);
-
-
         var user = await _userRepository.GetSingleAsync(id);
 
+        await VerifyUserNameIsAvailableAsync(request.Username);
+        
         if (!user.Username.Equals(request.Username,
                 StringComparison.OrdinalIgnoreCase))
         {
             await VerifyUserNameIsAvailableAsync(request.Username);
         }
-
-        User userToUpdate = new(request.Id, request.Username, user.Password);
-        await _userRepository.UpdateAsync(userToUpdate);
+        
+        // Only update username
+        user = new(user.Id, request.Username, user.Password);
+        
+        await _userRepository.UpdateAsync(user);
 
         CacheInvalidate(id);
 
-        return Ok(request);
+        var dto = new UpdateUsernameDTO()
+        {
+            Id = user.Id,
+            Username = user.Username
+        };
+
+        return Ok(dto);
     }
 
     [HttpPut("{id:int}/password")]
-    public async Task<ActionResult<UserPasswordDTO>> UpdatePassword(int id,
-        [FromBody] UserPasswordDTO request)
+    public async Task<ActionResult<UpdateUserPasswordDTO>> UpdatePassword(int id,
+        [FromBody] UpdateUserPasswordDTO request)
     {
-        if (id != request.Id)
-        {
-            return BadRequest(
-                $"The User ID in the URL ({id}) does not match the ID in the request body ({request.Id}).");
-        }
-
+        
         var user = await _userRepository.GetSingleAsync(id);
-        User userToUpdate = new(user.Id, user.Username, request.Password);
-        await _userRepository.UpdateAsync(userToUpdate);
+
+        // Only update password
+        user = new(user.Id, user.Username, request.Password);
+        
+        await _userRepository.UpdateAsync(user);
 
         CacheInvalidate(id);
+        
+        var dto = new UpdateUserPasswordDTO()
+        {
+            Id = user.Id,
+            Password = user.Password
+        };
 
-        return Ok(request);
+        // maybe not ideal to return password
+        return Ok(dto);
     }
 
     [HttpGet]
@@ -117,11 +123,15 @@ public class UsersController : ControllerBase
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
                 });
+        }
+        
+        var filteredUsers = cachedUsers;
 
-            // Filter
+
+        // Filter
             if (!string.IsNullOrWhiteSpace(startsWith))
             {
-                cachedUsers = cachedUsers.Where(u =>
+                filteredUsers = filteredUsers.Where(u =>
                     u.Username.StartsWith(startsWith,
                         StringComparison.OrdinalIgnoreCase));
             }
@@ -131,16 +141,15 @@ public class UsersController : ControllerBase
                 switch (sortBy)
                 {
                     case "username":
-                        cachedUsers = cachedUsers.OrderBy(u => u.Username);
+                        filteredUsers = filteredUsers.OrderBy(u => u.Username);
                         break;
                     case "id":
-                        cachedUsers = cachedUsers.OrderBy(u => u.Id);
+                        filteredUsers = filteredUsers.OrderBy(u => u.Id);
                         break;
                 }
             }
-        }
 
-        var users = cachedUsers.Select(u => new UserDTO
+        var users = filteredUsers.Select(u => new UserDTO
         {
             Id = u.Id, Username = u.Username
         }).ToList();
@@ -153,7 +162,7 @@ public class UsersController : ControllerBase
     {
         string cacheKey = $"post-{id}";
 
-        if (_cache.TryGetValue(cacheKey, out UserDTO cachedUser))
+        if (_cache.TryGetValue(cacheKey, out UserDTO? cachedUser))
         {
             return Ok(cachedUser);
         }

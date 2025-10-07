@@ -7,5 +7,5 @@ public class CommentDTO
     public int PostId { get; set; }
     public int UserId { get; set; }
 
-    public UserDTO? author { get; set; }
+    public UserDTO? Author { get; set; }
 }
