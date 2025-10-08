@@ -59,24 +59,40 @@ public class PostsController : ControllerBase
     public async Task<ActionResult<PostDTO>> UpdatePost(int id,
         [FromBody] UpdatePostDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            throw new ArgumentException(
+                $"Title is required and cannot be empty");
+        }
+        
+        if (string.IsNullOrWhiteSpace(request.Body))
+        {
+            throw new ArgumentException(
+                $"Body is required and cannot be empty");
+        }
+        
         var post = await _postRepository.GetSingleAsync(id);
-        
+
         // Only Title and Body updates
-        post = new (post.Id, request.Title, request.Body,
+        var updatedPost = new Post(post.Id, request.Title, request.Body,
             post.UserId);
-        
-        await _postRepository.UpdateAsync(post);
+
+        await _postRepository.UpdateAsync(updatedPost);
 
         // Cache invalidation
         CacheInvalidate(id);
 
-        var dto = new UpdatePostDTO()
+        var author = await _userRepository.GetSingleAsync(updatedPost.UserId);
+
+        var dto = new PostDTO
         {
-            Id = post.Id,
-            Title = post.Title,
-            Body = post.Body
+            Id = updatedPost.Id,
+            Title = updatedPost.Title,
+            Body = updatedPost.Body,
+            UserId = updatedPost.UserId,
+            Author = new UserDTO { Id = author.Id, Username = author.Username }
         };
-        
+
         return Ok(dto);
     }
 
@@ -98,7 +114,7 @@ public class PostsController : ControllerBase
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
                 });
         }
-        
+
         var filteredPosts = cachedPosts;
 
         // Filters
@@ -114,7 +130,8 @@ public class PostsController : ControllerBase
         }
 
         var userIds =
-            filteredPosts.Select(p => p.UserId).Distinct().ToList(); // no duplicates
+            filteredPosts.Select(p => p.UserId).Distinct()
+                .ToList(); // no duplicates
         // Map to UserDTO
         var users = _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
             .Select(u => new UserDTO()
@@ -169,10 +186,11 @@ public class PostsController : ControllerBase
                 .Where(c => c.PostId == id)
                 .ToList();
             var userIds = comments.Select(c => c.UserId).Distinct().ToList();
-            var users = _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
+            var users = _userRepository.GetMany()
+                .Where(u => userIds.Contains(u.Id))
                 .Select(u => new UserDTO()
                     { Id = u.Id, Username = u.Username }).ToList();
-            
+
             dtoToCache = new PostWithCommentsDTO()
             {
                 Id = post.Id,
@@ -184,7 +202,8 @@ public class PostsController : ControllerBase
                 Comments = comments.Select(c => new CommentDTO
                 {
                     Id = c.Id, Body = c.Body, PostId = c.PostId,
-                    UserId = c.UserId,Author = users.FirstOrDefault(u=>u.Id==c.UserId)
+                    UserId = c.UserId,
+                    Author = users.FirstOrDefault(u => u.Id == c.UserId)
                 }).ToList()
             };
         }

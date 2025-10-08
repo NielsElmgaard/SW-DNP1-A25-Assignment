@@ -23,8 +23,7 @@ public class UsersController : ControllerBase
     {
         var users = _userRepository.GetMany();
         if (users.Any(u =>
-                u.Username.Equals(username,
-                    StringComparison.OrdinalIgnoreCase)))
+                u.Username.Equals(username)))
         {
             throw new InvalidOperationException(
                 $"Username '{username}' is already taken.");
@@ -42,6 +41,18 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDTO>> CreateUser(
         [FromBody] CreateUserDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.Username))
+        {
+            throw new ArgumentException(
+                $"Username is required and cannot be empty");
+        }
+        
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            throw new ArgumentException(
+                $"Password is required and cannot be empty");
+        }
+
         await VerifyUserNameIsAvailableAsync(request.Username);
 
         User user = new(0, request.Username, request.Password);
@@ -58,24 +69,26 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UpdateUsernameDTO>> UpdateUsername(int id,
         [FromBody] UserDTO request)
     {
-        var user = await _userRepository.GetSingleAsync(id);
-
-        await VerifyUserNameIsAvailableAsync(request.Username);
+        if (string.IsNullOrWhiteSpace(request.Username))
+        {
+            throw new ArgumentException(
+                $"Username is required and cannot be empty");
+        }
         
-        if (!user.Username.Equals(request.Username,
-                StringComparison.OrdinalIgnoreCase))
+        var user = await _userRepository.GetSingleAsync(id);
+        if (user.Username != request.Username)
         {
             await VerifyUserNameIsAvailableAsync(request.Username);
         }
         
         // Only update username
         user = new(user.Id, request.Username, user.Password);
-        
+
         await _userRepository.UpdateAsync(user);
 
         CacheInvalidate(id);
 
-        var dto = new UpdateUsernameDTO()
+        var dto = new UserDTO()
         {
             Id = user.Id,
             Username = user.Username
@@ -85,19 +98,25 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:int}/password")]
-    public async Task<ActionResult<UpdateUserPasswordDTO>> UpdatePassword(int id,
+    public async Task<ActionResult<UpdateUserPasswordDTO>> UpdatePassword(
+        int id,
         [FromBody] UpdateUserPasswordDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            throw new ArgumentException(
+                $"Password is required and cannot be empty");
+        }
         
         var user = await _userRepository.GetSingleAsync(id);
-
+        
         // Only update password
         user = new(user.Id, user.Username, request.Password);
-        
+
         await _userRepository.UpdateAsync(user);
 
         CacheInvalidate(id);
-        
+
         var dto = new UpdateUserPasswordDTO()
         {
             Id = user.Id,
@@ -124,30 +143,30 @@ public class UsersController : ControllerBase
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
                 });
         }
-        
+
         var filteredUsers = cachedUsers;
 
 
         // Filter
-            if (!string.IsNullOrWhiteSpace(startsWith))
-            {
-                filteredUsers = filteredUsers.Where(u =>
-                    u.Username.StartsWith(startsWith,
-                        StringComparison.OrdinalIgnoreCase));
-            }
+        if (!string.IsNullOrWhiteSpace(startsWith))
+        {
+            filteredUsers = filteredUsers.Where(u =>
+                u.Username.StartsWith(startsWith,
+                    StringComparison.OrdinalIgnoreCase));
+        }
 
-            if (!string.IsNullOrWhiteSpace(sortBy))
+        if (!string.IsNullOrWhiteSpace(sortBy))
+        {
+            switch (sortBy)
             {
-                switch (sortBy)
-                {
-                    case "username":
-                        filteredUsers = filteredUsers.OrderBy(u => u.Username);
-                        break;
-                    case "id":
-                        filteredUsers = filteredUsers.OrderBy(u => u.Id);
-                        break;
-                }
+                case "username":
+                    filteredUsers = filteredUsers.OrderBy(u => u.Username);
+                    break;
+                case "id":
+                    filteredUsers = filteredUsers.OrderBy(u => u.Id);
+                    break;
             }
+        }
 
         var users = filteredUsers.Select(u => new UserDTO
         {

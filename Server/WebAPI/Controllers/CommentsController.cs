@@ -12,13 +12,16 @@ public class CommentsController : ControllerBase
 {
     private readonly ICommentRepository _commentRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IPostRepository _postRepository;
     private readonly IMemoryCache _cache;
 
     public CommentsController(ICommentRepository commentRepository,
-        IUserRepository userRepository, IMemoryCache cache)
+        IUserRepository userRepository, IPostRepository postRepository,
+        IMemoryCache cache)
     {
         _commentRepository = commentRepository;
         _userRepository = userRepository;
+        _postRepository = postRepository;
         _cache = cache;
     }
 
@@ -32,9 +35,11 @@ public class CommentsController : ControllerBase
     public async Task<ActionResult<CommentDTO>> CreateComment(
         [FromBody] CreateCommentDTO request)
     {
+        User author = await _userRepository.GetSingleAsync(request.UserId);
+        await _postRepository.GetSingleAsync(request.PostId);
         Comment comment = new(0, request.Body, request.PostId, request.UserId);
         Comment created = await _commentRepository.AddAsync(comment);
-        User author = await _userRepository.GetSingleAsync(created.UserId);
+
 
         // Cache invalidation
         CacheInvalidate(created.Id);
@@ -52,22 +57,35 @@ public class CommentsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<CommentDTO>> UpdatePost(int id,
+    public async Task<ActionResult<CommentDTO>> UpdateComment(int id,
         [FromBody] UpdateCommentDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.Body))
+        {
+            throw new ArgumentException(
+                $"Body is required and cannot be empty");
+        }
         var comment = await _commentRepository.GetSingleAsync(id);
-
+        
         // Only Body updates
-        comment = new(comment.Id, request.Body, comment.PostId, comment.UserId);
-        await _commentRepository.UpdateAsync(comment);
+        var updatedComment = new Comment(comment.Id, request.Body,
+            comment.PostId, comment.UserId);
+        await _commentRepository.UpdateAsync(updatedComment);
 
         // Cache invalidation
         CacheInvalidate(id);
 
-        var dto = new UpdateCommentDTO()
+        var author =
+            await _userRepository.GetSingleAsync(updatedComment.UserId);
+
+        var dto = new CommentDTO()
         {
-            Id = comment.Id,
-            Body = comment.Body
+            Id = updatedComment.Id,
+            Body = updatedComment.Body,
+            PostId = updatedComment.PostId,
+            UserId = updatedComment.UserId,
+            Author = new UserDTO
+                { Id = author.Id, Username = author.Username }
         };
 
         return Ok(dto);
@@ -92,7 +110,7 @@ public class CommentsController : ControllerBase
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
                 });
         }
-        
+
         var filteredComments = cachedComments;
 
         // Filters
@@ -172,8 +190,8 @@ public class CommentsController : ControllerBase
             UserId = comment.UserId, Author = new UserDTO
                 { Id = author.Id, Username = author.Username }
         };
-        
-        _cache.Set(cacheKey,commentDto,new MemoryCacheEntryOptions()
+
+        _cache.Set(cacheKey, commentDto, new MemoryCacheEntryOptions()
         {
             SlidingExpiration = TimeSpan.FromMinutes(2),
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
@@ -181,7 +199,7 @@ public class CommentsController : ControllerBase
 
         return Ok(commentDto);
     }
-    
+
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteComment(int id)
     {
