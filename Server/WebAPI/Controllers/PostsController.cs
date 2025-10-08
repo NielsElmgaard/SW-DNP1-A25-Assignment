@@ -37,6 +37,18 @@ public class PostsController : ControllerBase
     public async Task<ActionResult<PostDTO>> CreatePost(
         [FromBody] CreatePostDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            throw new ArgumentException(
+                $"Title is required and cannot be empty");
+        }
+        
+        if (string.IsNullOrWhiteSpace(request.Body))
+        {
+            throw new ArgumentException(
+                $"Body is required and cannot be empty");
+        }
+        
         Post post = new(0, request.Title, request.Body, request.UserId);
         Post created = await _postRepository.AddAsync(post);
         User author = await _userRepository.GetSingleAsync(created.UserId);

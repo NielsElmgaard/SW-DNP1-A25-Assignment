@@ -35,6 +35,12 @@ public class CommentsController : ControllerBase
     public async Task<ActionResult<CommentDTO>> CreateComment(
         [FromBody] CreateCommentDTO request)
     {
+        if (string.IsNullOrWhiteSpace(request.Body))
+        {
+            throw new ArgumentException(
+                $"Body is required and cannot be empty");
+        }
+        
         User author = await _userRepository.GetSingleAsync(request.UserId);
         await _postRepository.GetSingleAsync(request.PostId);
         Comment comment = new(0, request.Body, request.PostId, request.UserId);
