@@ -57,6 +57,9 @@ public class UsersController : ControllerBase
 
         User user = new(0, request.Username, request.Password);
         User created = await _userRepository.AddAsync(user);
+        
+        CacheInvalidate(created.Id);
+        
         UserDTO dto = new()
         {
             Id = created.Id,

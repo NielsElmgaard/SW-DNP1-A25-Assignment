@@ -1,0 +1,9 @@
+﻿@using ApiContracts_DTOs
+<tr>
+    <td>#@User.Id</td>
+    <td>@User.Username</td>
+</tr>
+@code {
+    [Parameter] public UserDTO User { get; set; } = default!;
+
+}

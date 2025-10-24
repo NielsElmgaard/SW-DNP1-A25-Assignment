@@ -49,7 +49,7 @@ public class PostsController : ControllerBase
                 $"Body is required and cannot be empty");
         }
         
-        Post post = new(0, request.Title, request.Body, request.UserId);
+        Post post = new(0, request.Title, request.Body, request.UserId.Value);
         Post created = await _postRepository.AddAsync(post);
         User author = await _userRepository.GetSingleAsync(created.UserId);
 

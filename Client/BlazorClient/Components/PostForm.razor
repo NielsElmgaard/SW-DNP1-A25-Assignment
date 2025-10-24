@@ -1,0 +1,33 @@
+﻿@using ApiContracts_DTOs
+<EditForm Model=@Post OnValidSubmit=@OnValidSubmit
+          OnInvalidSubmit=@OnInvalidSubmit>
+    <DataAnnotationsValidator/>
+    <ValidationSummary class="alert alert-warning"/>
+    <div class="form-group">
+        <label for="Title">Title</label>
+        <InputText @bind-Value="Post.Title" class="form-control" id="Title"/>
+        <!-- Display specific error message -->
+        <ValidationMessage For="@(() => Post.Title)"/>
+    </div>
+    <div class="form-group">
+        <label for="Body">Body</label>
+        <InputText @bind-Value="Post.Body" class="form-control" id="Body"/>
+        <ValidationMessage For="@(() => Post.Body)"/>
+    </div>
+    <div class="form-group">
+        <label for="UserID">UserID</label>
+        <InputNumber @bind-Value="Post.UserId" class="form-control"
+                     id="UserID"/>
+        <ValidationMessage For="@(() => Post.UserId)"/>
+    </div>
+    <input type="submit" class="btn btn-primary" value="Save"/>
+</EditForm>
+
+
+@code {
+    [Parameter] public CreatePostDTO Post { get; set; }
+
+    [Parameter] public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter] public EventCallback OnInvalidSubmit { get; set; }
+}

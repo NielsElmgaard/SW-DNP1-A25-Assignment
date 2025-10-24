@@ -1,8 +1,8 @@
-﻿@page "/CreatePost"
+﻿@page "/CreateUser"
 @using ApiContracts_DTOs
 @using BlazorClient.Services
-@inject IPostService PostService
-<h3>Create Post</h3>
+@inject IUserService UserService
+<h3>Create User</h3>
 
 @if (!string.IsNullOrEmpty(LastSubmitResult))
 {
@@ -10,22 +10,21 @@
         @LastSubmitResult
     </h2>
 }
-<PostForm Post="Post"
+<UserForm User="User"
           OnValidSubmit="ValidFormSubmitted"
           OnInvalidSubmit="InvalidFormSubmitted"/>
 
 @code {
 
-    CreatePostDTO Post = new CreatePostDTO
+    CreateUserDTO User = new CreateUserDTO
     {
-        Title = null,
-        Body = null,
-        UserId = null
+        Username = null,
+        Password = null
     };
 
     string LastSubmitResult;
     bool IsSucces;
-    PostDTO? CreatedPost;
+    UserDTO? CreatedUser;
 
     async Task ValidFormSubmitted()
     {
@@ -33,16 +32,16 @@
         IsSucces = false;
         try
         {
-            CreatedPost = await PostService.CreatePostAsync(Post);
+            CreatedUser = await UserService.CreateUserAsync(User);
 
-            LastSubmitResult = $"Success! Post created with ID: {CreatedPost.Id}.";
+            LastSubmitResult = $"Success! Post created with ID: {CreatedUser.Id}.";
             IsSucces = true;
 
-            Post = new CreatePostDTO // reset
+            User = new CreateUserDTO // reset
+
             {
-                Title = null,
-                Body = null,
-                UserId = null
+                Username = null,
+                Password = null
             };
         }
         catch (Exception e)
