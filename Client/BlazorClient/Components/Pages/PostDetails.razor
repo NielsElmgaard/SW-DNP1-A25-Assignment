@@ -1,0 +1,82 @@
+﻿@page "/Posts/{PostId:int}"
+@using ApiContracts_DTOs
+@using BlazorClient.Services
+@inject IPostService PostService
+@inject ICommentService CommentService
+
+@if (post == null)
+{
+    <p>
+        <em>Loading...</em>
+    </p>
+}
+else
+{
+    <h1>@post.Title</h1>
+    <p class="border text-center px-3 py-2 d-inline-block" id="post-author">
+        Author: <span class="fw-semibold">@post.Author.Username</span></p>
+    <div class="post-body">
+        <p>@post.Body</p>
+    </div>
+    <hr/>
+    @if (post.Comments != null)
+    {
+        <CommentList Comments="post.Comments"/>
+    }
+    
+    <hr/>
+    
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <p class="text-danger">@errorMessage</p>
+    }
+    <p class="h5">Create Comment:</p>
+    <input type="number" @bind="commentUserId"
+           placeholder="Enter your User Id"
+           class="text-center form-control-lg mb-2 px-3 py-2 d-inline-block"/>
+    <textarea @bind="commentBody" placeholder="Write your comment here"
+              class="form-control mb-2"/>
+    <button class="btn btn-dark"
+            @onclick="async ()=> await CreateComment(commentBody,commentUserId)">
+        Submit
+    </button>
+}
+
+@code {
+    [Parameter] public int PostId { get; set; }
+
+    private PostWithCommentsDTO? post;
+
+    private string commentBody { get; set; } = string.Empty;
+    private int? commentUserId { get; set; } = null; // No authentication yet
+    private string? errorMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        post = await PostService.GetSinglePostByIdAsync(PostId, "comments");
+    }
+
+    private async Task CreateComment(string body, int? userid)
+    {
+        try
+        {
+            CreateCommentDTO commentRequest = new CreateCommentDTO { Body = body, PostId = PostId, UserId = userid };
+            await CommentService.CreateCommentAsync(commentRequest);
+            var refreshedPost = await PostService.GetSinglePostByIdAsync(PostId, "comments");
+            if (refreshedPost != null)
+            {
+                post = refreshedPost;
+                errorMessage = string.Empty;
+            }
+
+            commentBody = string.Empty;
+            commentUserId = null;
+        }
+        catch (Exception e)
+        {
+            errorMessage = e.Message;
+        }
+    }
+
+}

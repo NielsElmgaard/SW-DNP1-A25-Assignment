@@ -1,0 +1,10 @@
+﻿@using ApiContracts_DTOs
+
+<tr>
+    <td><a href="/posts/@Post.Id">@Post.Title</a></td>
+    <td>@Post.Author.Username</td>
+</tr>
+
+@code {
+    [Parameter] public PostDTO Post { get; set; } = default!;
+}

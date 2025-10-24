@@ -25,30 +25,38 @@ public class CommentsController : ControllerBase
         _cache = cache;
     }
 
-    private void CacheInvalidate(int id)
+    private void CacheInvalidate(int postId, int commentId)
     {
-        _cache.Remove($"allComments-{id}");
+        _cache.Remove($"comment-{commentId}");
         _cache.Remove("allComments");
+        _cache.Remove($"post-{postId}Includecomments");
     }
 
     [HttpPost]
     public async Task<ActionResult<CommentDTO>> CreateComment(
         [FromBody] CreateCommentDTO request)
     {
+        
+        if (!request.UserId.HasValue)
+        {
+            throw new ArgumentException(
+                $"User ID is required and cannot be empty");
+        }
+        
         if (string.IsNullOrWhiteSpace(request.Body))
         {
             throw new ArgumentException(
                 $"Body is required and cannot be empty");
         }
         
-        User author = await _userRepository.GetSingleAsync(request.UserId);
+        User author = await _userRepository.GetSingleAsync(request.UserId.Value);
         await _postRepository.GetSingleAsync(request.PostId);
-        Comment comment = new(0, request.Body, request.PostId, request.UserId);
+        Comment comment = new(0, request.Body, request.PostId, request.UserId.Value);
         Comment created = await _commentRepository.AddAsync(comment);
 
 
         // Cache invalidation
-        CacheInvalidate(created.Id);
+        CacheInvalidate(created.PostId,created.Id);
 
         CommentDTO dto = new()
         {
@@ -79,7 +87,7 @@ public class CommentsController : ControllerBase
         await _commentRepository.UpdateAsync(updatedComment);
 
         // Cache invalidation
-        CacheInvalidate(id);
+        CacheInvalidate(comment.PostId,comment.Id);
 
         var author =
             await _userRepository.GetSingleAsync(updatedComment.UserId);
@@ -209,9 +217,12 @@ public class CommentsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteComment(int id)
     {
+        var commentToDelete = await _commentRepository.GetSingleAsync(id);
+        var postId = commentToDelete.PostId;
+        
         await _commentRepository.DeleteAsync(id);
 
-        CacheInvalidate(id);
+        CacheInvalidate(postId,id);
 
         return NoContent();
     }
