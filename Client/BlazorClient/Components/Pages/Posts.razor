@@ -1,0 +1,45 @@
+﻿@page "/Posts"
+@using ApiContracts_DTOs
+@using BlazorClient.Services
+@attribute [StreamRendering]
+@inject IPostService PostService
+
+<PageTitle>Posts</PageTitle>
+
+<h3>Posts</h3>
+<a href="/CreatePost" class="btn btn-dark mb-3"> Create New Post</a>
+
+
+@if (posts == null)
+{
+    <p>
+        <em>Loading...</em>
+    </p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Title</th>
+            <th>Author</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var post in posts)
+        {
+            <PostListItem Post="post" />
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IEnumerable<PostDTO>? posts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        posts = await PostService.GetPostsAsync(null, null, null);
+    }
+
+}

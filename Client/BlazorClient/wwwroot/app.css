@@ -2,8 +2,17 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+.page {
+  background-color: rgb(211,211,211,0.15);
+}
+
 a, .btn-link {
-    color: #006bb7;
+    color: #000000;
+  text-decoration: none;
+}
+
+a:hover {
+  color:#929292;
 }
 
 .btn-primary {
@@ -57,4 +66,14 @@ h1:focus {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
+}
+
+.post-body {
+  border: 1px solid gainsboro;
+  background-color: lightyellow;
+  padding: 10px;
+}
+
+#post-author {
+  background-color: rgb(51, 51, 51,0.25);
 }

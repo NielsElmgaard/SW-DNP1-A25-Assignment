@@ -1,0 +1,32 @@
+﻿@using ApiContracts_DTOs
+
+<div>
+    <h4>Comments (@Comments.Count)</h4>
+    @if (Comments.Any())
+    {
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th>Comment</th>
+                <th>Author</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var comment in Comments)
+            {
+                <CommentListItem Comment="comment"/>
+            }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>
+            <em>No comments yet...</em>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public List<CommentDTO> Comments { get; set; } = new List<CommentDTO>();
+}
