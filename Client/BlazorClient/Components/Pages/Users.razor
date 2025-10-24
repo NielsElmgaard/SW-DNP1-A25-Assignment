@@ -7,6 +7,7 @@
 <PageTitle>Users</PageTitle>
 
 <h1>Users</h1>
+<a href="/CreateUser" class="btn btn-dark mb-3"> Create New User</a>
 
 @if (users == null)
 {
@@ -26,10 +27,7 @@ else
         <tbody>
         @foreach (var user in users)
         {
-            <tr>
-                <td>#@user.Id</td>
-                <td>@user.Username</td>
-            </tr>
+            <UserListItem User="user"/>
         }
         </tbody>
     </table>
