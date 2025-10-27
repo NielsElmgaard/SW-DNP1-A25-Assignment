@@ -165,7 +165,10 @@ public class UsersController : ControllerBase
                 case "username":
                     filteredUsers = filteredUsers.OrderBy(u => u.Username);
                     break;
-                case "id":
+                case "id_desc":
+                    filteredUsers = filteredUsers.OrderByDescending(u => u.Id);
+                    break;
+                case "id_asc":
                     filteredUsers = filteredUsers.OrderBy(u => u.Id);
                     break;
             }

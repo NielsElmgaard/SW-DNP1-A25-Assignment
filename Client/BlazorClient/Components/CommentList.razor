@@ -1,7 +1,7 @@
 ﻿@using ApiContracts_DTOs
 
 <div>
-    <h4>Comments (@Comments.Count)</h4>
+    <h4>Comments (@Comments.Count())</h4>
     @if (Comments.Any())
     {
         <table class="table table-striped">
@@ -28,5 +28,5 @@
 </div>
 
 @code {
-    [Parameter] public List<CommentDTO> Comments { get; set; } = new List<CommentDTO>();
+    [Parameter] public IEnumerable<CommentDTO> Comments { get; set; } = new List<CommentDTO>();
 }

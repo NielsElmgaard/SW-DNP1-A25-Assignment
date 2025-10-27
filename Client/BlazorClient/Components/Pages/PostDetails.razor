@@ -21,7 +21,20 @@ else
     <hr/>
     @if (post.Comments != null)
     {
-        <CommentList Comments="post.Comments"/>
+        <div class="mb-2 w-25">
+            <SearchBox Type="number" Label="Filter by User id" Placeholder="Enter user id"
+                       OnSearchChanged="FilterByUserId"/>
+        </div>
+        <div class="mb-2 w-25">
+            <SearchBox Type="text" Label="Filter by Author" Placeholder="Enter author"
+                       OnSearchChanged="FilterByAuthor"/>
+        </div>
+        <div class="mb-2 w-25">
+            <SearchBox Type="text" Label="Sort by 'userid_asc' or 'userid_desc'"
+                       Placeholder="Enter sort by"
+                       OnSearchChanged="FilterBySortBy"/>
+        </div>
+        <CommentList Comments="filteredComments"/>
     }
     
     <hr/>
@@ -46,15 +59,23 @@ else
     [Parameter] public int PostId { get; set; }
 
     private PostWithCommentsDTO? post;
+    
+    private IEnumerable<CommentDTO>? filteredComments = Enumerable.Empty<CommentDTO>();
 
     private string commentBody { get; set; } = string.Empty;
     private int? commentUserId { get; set; } = null; // No authentication yet
     private string? errorMessage;
 
+    
+    private string userIdFilter = string.Empty;
+    private string authorFilter = string.Empty;
+    private string postIdFilter = string.Empty;
+    private string sortByFilter = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         post = await PostService.GetSinglePostByIdAsync(PostId, "comments");
+        filteredComments = post.Comments;
     }
 
     private async Task CreateComment(string body, int? userid)
@@ -67,6 +88,7 @@ else
             if (refreshedPost != null)
             {
                 post = refreshedPost;
+                filteredComments = post.Comments;
                 errorMessage = string.Empty;
             }
 
@@ -77,6 +99,48 @@ else
         {
             errorMessage = e.Message;
         }
+    }
+    
+    private async Task FilterByUserId(string userid)
+    {
+        userIdFilter = userid;
+        await FilterComments();
+    }
+    
+    private async Task FilterByAuthor(string author)
+    {
+        authorFilter = author;
+        await FilterComments();
+    }
+    
+    private async Task FilterByPostId(string postid)
+    {
+        postIdFilter = postid;
+        await FilterComments();
+    }
+
+    private async Task FilterBySortBy(string sortBy)
+    {
+        sortByFilter = sortBy;
+        await FilterComments();
+    }
+    
+    private async Task FilterComments()
+    {
+        int? userIdQueryParameter = null;
+
+
+        if (!string.IsNullOrWhiteSpace(userIdFilter) && int.TryParse(userIdFilter, out var userid))
+        {
+            userIdQueryParameter = userid;
+        }
+        
+
+        filteredComments = await CommentService.GetCommentsAsync(userIdQueryParameter,
+            string.IsNullOrWhiteSpace(authorFilter) ? null : authorFilter,
+            null,
+            string.IsNullOrWhiteSpace(sortByFilter) ? null : sortByFilter
+        );
     }
 
 }

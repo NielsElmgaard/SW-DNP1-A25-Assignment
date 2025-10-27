@@ -19,15 +19,15 @@
 else
 {
     <div class="mb-2 w-25">
-        <SearchBox Label="Filter by Title" Placeholder="Enter title"
+        <SearchBox Type="text" Label="Filter by Title" Placeholder="Enter title"
                    OnSearchChanged="FilterByTitle"/>
     </div>
     <div class="mb-2 w-25">
-        <SearchBox Label="Filter by Author" Placeholder="Enter author"
+        <SearchBox Type="text" Label="Filter by Author" Placeholder="Enter author"
                    OnSearchChanged="FilterByAuthor"/>
     </div>
     <div class="mb-2 w-25">
-        <SearchBox Label="Filter by User id" Placeholder="Enter user id"
+        <SearchBox Type="number" Label="Filter by User id" Placeholder="Enter user id"
                    OnSearchChanged="FilterByUserId"/>
     </div>
     <table class="table">
@@ -65,33 +65,33 @@ else
     private async Task FilterByTitle(string title)
     {
         titleFilter = title;
-        await FilterPost();
+        await FilterPosts();
     }
     
     private async Task FilterByAuthor(string author)
     {
         authorFilter = author;
-        await FilterPost();
+        await FilterPosts();
     }
     
     private async Task FilterByUserId(string userid)
     {
         userIdFilter = userid;
-        await FilterPost();
+        await FilterPosts();
     }
 
-    private async Task FilterPost()
+    private async Task FilterPosts()
     {
-        int? userIdParam = null;
+        int? userIdQueryParameter = null;
 
         if (!string.IsNullOrWhiteSpace(userIdFilter) && int.TryParse(userIdFilter, out var id))
         {
-            userIdParam = id;
+            userIdQueryParameter = id;
         }
 
         filteredPosts = await PostService.GetPostsAsync(
             string.IsNullOrWhiteSpace(titleFilter) ? null : titleFilter,
-            userIdParam,
+            userIdQueryParameter,
             string.IsNullOrWhiteSpace(authorFilter) ? null : authorFilter
         );
     }

@@ -151,7 +151,7 @@ public class PostsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(authorName))
         {
-            var author = users.FirstOrDefault(u => u.Username == authorName);
+            var author = users.FirstOrDefault(u => u.Username.Contains(authorName)); // Partial matching. Switch to == for exact match
             if (author != null)
             {
                 filteredPosts = filteredPosts.Where(p => p.UserId == author.Id);

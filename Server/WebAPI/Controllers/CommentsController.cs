@@ -149,7 +149,7 @@ public class CommentsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(authorName))
         {
-            var author = users.FirstOrDefault(u => u.Username == authorName);
+            var author = users.FirstOrDefault(u => u.Username.Contains(authorName,StringComparison.OrdinalIgnoreCase)); // Partial matching. Switch to == for exact match
             if (author != null)
             {
                 filteredComments =
@@ -165,11 +165,17 @@ public class CommentsController : ControllerBase
         {
             switch (sortBy.ToLowerInvariant())
             {
-                case "userid":
+                case "userid_asc":
                     filteredComments = filteredComments.OrderBy(c => c.UserId);
                     break;
-                case "postid":
+                case "userid_desc":
+                    filteredComments = filteredComments.OrderByDescending(c => c.UserId);
+                    break;
+                case "postid_asc":
                     filteredComments = filteredComments.OrderBy(u => u.PostId);
+                    break;
+                case "postid_desc":
+                    filteredComments = filteredComments.OrderByDescending(u => u.PostId);
                     break;
             }
         }

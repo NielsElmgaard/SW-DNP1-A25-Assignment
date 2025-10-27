@@ -34,7 +34,7 @@
         {
             CreatedUser = await UserService.CreateUserAsync(User);
 
-            LastSubmitResult = $"Success! Post created with ID: {CreatedUser.Id}.";
+            LastSubmitResult = $"Success! User created with ID: {CreatedUser.Id}.";
             IsSucces = true;
 
             User = new CreateUserDTO // reset
