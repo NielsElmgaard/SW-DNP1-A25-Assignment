@@ -18,9 +18,17 @@
 }
 else
 {
-    <div class="mb-3">
+    <div class="mb-2 w-25">
         <SearchBox Label="Filter by Title" Placeholder="Enter title"
                    OnSearchChanged="FilterByTitle"/>
+    </div>
+    <div class="mb-2 w-25">
+        <SearchBox Label="Filter by Author" Placeholder="Enter author"
+                   OnSearchChanged="FilterByAuthor"/>
+    </div>
+    <div class="mb-2 w-25">
+        <SearchBox Label="Filter by User id" Placeholder="Enter user id"
+                   OnSearchChanged="FilterByUserId"/>
     </div>
     <table class="table">
         <thead>
@@ -57,6 +65,18 @@ else
     private async Task FilterByTitle(string title)
     {
         titleFilter = title;
+        await FilterPost();
+    }
+    
+    private async Task FilterByAuthor(string author)
+    {
+        authorFilter = author;
+        await FilterPost();
+    }
+    
+    private async Task FilterByUserId(string userid)
+    {
+        userIdFilter = userid;
         await FilterPost();
     }
 
