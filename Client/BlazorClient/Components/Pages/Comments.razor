@@ -1,0 +1,114 @@
+﻿@page "/Comments"
+@using ApiContracts_DTOs
+@using BlazorClient.Services
+@inject ICommentService CommentService
+
+<PageTitle>Comments</PageTitle>
+<h3>Comments</h3>
+
+@if (comments == null)
+{
+    <p>
+        <em>Loading...</em>
+    </p>
+}
+else
+{
+    <div class="mb-2 w-25">
+        <SearchBox Type="number" Label="Filter by User id" Placeholder="Enter user id"
+                   OnSearchChanged="FilterByUserId"/>
+    </div>
+    <div class="mb-2 w-25">
+        <SearchBox Type="text" Label="Filter by Author" Placeholder="Enter author"
+                   OnSearchChanged="FilterByAuthor"/>
+    </div>
+    <div class="mb-2 w-25">
+        <SearchBox Type="number" Label="Filter by Post id" Placeholder="Enter post id"
+                   OnSearchChanged="FilterByPostId"/>
+    </div>
+    <div class="mb-2 w-25">
+        <SearchBox Type="text" Label="Sort by 'userid_asc', 'userid_desc', 'postid_asc' or 'postid_desc',"
+                   Placeholder="Enter sort by"
+                   OnSearchChanged="FilterBySortBy"/>
+    </div>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Body</th>
+            <th>Author</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var comment in filteredComments)
+        {
+            <CommentListItem Comment="comment"/>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+
+    private IEnumerable<CommentDTO>? comments;
+    private IEnumerable<CommentDTO>? filteredComments = Enumerable.Empty<CommentDTO>();
+
+
+    private string userIdFilter = string.Empty;
+    private string authorFilter = string.Empty;
+    private string postIdFilter = string.Empty;
+    private string sortByFilter = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        comments = await CommentService.GetCommentsAsync(null, null, null,null);
+        filteredComments = comments;
+    }
+
+    private async Task FilterByUserId(string userid)
+    {
+        userIdFilter = userid;
+        await FilterComments();
+    }
+    
+    private async Task FilterByAuthor(string author)
+    {
+        authorFilter = author;
+        await FilterComments();
+    }
+    
+    private async Task FilterByPostId(string postid)
+    {
+        postIdFilter = postid;
+        await FilterComments();
+    }
+
+    private async Task FilterBySortBy(string sortBy)
+    {
+        sortByFilter = sortBy;
+        await FilterComments();
+    }
+    
+    private async Task FilterComments()
+    {
+        int? userIdQueryParameter = null;
+        int? postIdQueryParameter = null;
+
+
+        if (!string.IsNullOrWhiteSpace(userIdFilter) && int.TryParse(userIdFilter, out var userid))
+        {
+            userIdQueryParameter = userid;
+        }
+        
+        if (!string.IsNullOrWhiteSpace(postIdFilter) && int.TryParse(postIdFilter, out var postid))
+        {
+            postIdQueryParameter = postid;
+        }
+
+        filteredComments = await CommentService.GetCommentsAsync(userIdQueryParameter,
+            string.IsNullOrWhiteSpace(authorFilter) ? null : authorFilter,
+            postIdQueryParameter,
+            string.IsNullOrWhiteSpace(sortByFilter) ? null : sortByFilter
+        );
+    }
+
+}

@@ -3,12 +3,14 @@
     <label class="form-label">@Label</label>
 }
 
-<input type="text" class="form-control" placeholder="@Placeholder"
+<input type=@Type class="form-control" placeholder="@Placeholder"
        value="@SearchText"
        @oninput="OnInput"/>
 
 @code {
     private string SearchText = string.Empty;
+
+    [Parameter] public string Type { get; set; } = "text";
 
     [Parameter] public string Label { get; set; } = string.Empty;
 

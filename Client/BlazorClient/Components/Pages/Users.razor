@@ -17,6 +17,16 @@
 }
 else
 {
+    <div class="mb-2 w-25">
+        <SearchBox Type="text" Label="Search by starts with username"
+                   Placeholder="Enter starts with username"
+                   OnSearchChanged="FilterByStartsWith"/>
+    </div>
+    <div class="mb-2 w-25">
+        <SearchBox Type="text" Label="Sort by 'id_asc', 'id_desc' or 'username'"
+                   Placeholder="Enter sort by"
+                   OnSearchChanged="FilterBySortBy"/>
+    </div>
     <table class="table">
         <thead>
         <tr>
@@ -25,7 +35,7 @@ else
         </tr>
         </thead>
         <tbody>
-        @foreach (var user in users)
+        @foreach (var user in filteredUsers)
         {
             <UserListItem User="user"/>
         }
@@ -35,10 +45,36 @@ else
 
 @code {
     private IEnumerable<UserDTO>? users;
+    private IEnumerable<UserDTO>? filteredUsers = Enumerable.Empty<UserDTO>();
+
+    private string startsWithFilter = string.Empty;
+    private string sortByFilter = string.Empty;
+
 
     protected override async Task OnInitializedAsync()
     {
         users = await UserService.GetUsersAsync(null, null);
+        filteredUsers = users;
+    }
+
+    private async Task FilterByStartsWith(string startsWith)
+    {
+        startsWithFilter = startsWith;
+        await FilterUsers();
+    }
+
+    private async Task FilterBySortBy(string sortBy)
+    {
+        sortByFilter = sortBy;
+        await FilterUsers();
+    }
+
+    private async Task FilterUsers()
+    {
+        filteredUsers = await UserService.GetUsersAsync(
+            string.IsNullOrWhiteSpace(startsWithFilter) ? null : startsWithFilter,
+            string.IsNullOrWhiteSpace(sortByFilter) ? null : sortByFilter
+        );
     }
 
 }
