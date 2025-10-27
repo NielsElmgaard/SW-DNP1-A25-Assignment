@@ -1,0 +1,25 @@
+﻿@if (!string.IsNullOrWhiteSpace(Label))
+{
+    <label class="form-label">@Label</label>
+}
+
+<input type="text" class="form-control" placeholder="@Placeholder"
+       value="@SearchText"
+       @oninput="OnInput"/>
+
+@code {
+    private string SearchText = string.Empty;
+
+    [Parameter] public string Label { get; set; } = string.Empty;
+
+    [Parameter] public EventCallback<string> OnSearchChanged { get; set; }
+
+    [Parameter] public string Placeholder { get; set; } = "Search";
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString() ?? string.Empty;
+        await OnSearchChanged.InvokeAsync(SearchText);
+    }
+
+}
