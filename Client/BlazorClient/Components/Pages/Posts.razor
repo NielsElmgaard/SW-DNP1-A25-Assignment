@@ -18,6 +18,10 @@
 }
 else
 {
+    <div class="mb-3">
+        <SearchBox Label="Filter by Title" Placeholder="Enter title"
+                   OnSearchChanged="FilterByTitle"/>
+    </div>
     <table class="table">
         <thead>
         <tr>
@@ -26,20 +30,50 @@ else
         </tr>
         </thead>
         <tbody>
-        @foreach (var post in posts)
+        @foreach (var post in filteredPosts)
         {
-            <PostListItem Post="post" />
+            <PostListItem Post="post"/>
         }
         </tbody>
     </table>
 }
 
 @code {
+
     private IEnumerable<PostDTO>? posts;
+    private IEnumerable<PostDTO>? filteredPosts = Enumerable.Empty<PostDTO>();
+
+
+    private string titleFilter = string.Empty;
+    private string authorFilter = string.Empty;
+    private string userIdFilter = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         posts = await PostService.GetPostsAsync(null, null, null);
+        filteredPosts = posts;
+    }
+
+    private async Task FilterByTitle(string title)
+    {
+        titleFilter = title;
+        await FilterPost();
+    }
+
+    private async Task FilterPost()
+    {
+        int? userIdParam = null;
+
+        if (!string.IsNullOrWhiteSpace(userIdFilter) && int.TryParse(userIdFilter, out var id))
+        {
+            userIdParam = id;
+        }
+
+        filteredPosts = await PostService.GetPostsAsync(
+            string.IsNullOrWhiteSpace(titleFilter) ? null : titleFilter,
+            userIdParam,
+            string.IsNullOrWhiteSpace(authorFilter) ? null : authorFilter
+        );
     }
 
 }
