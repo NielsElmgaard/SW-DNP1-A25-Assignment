@@ -39,7 +39,7 @@
         errorMessage = string.Empty;
         try
         {
-            await ((SimpleAuthProvider)AuthProvider).Login(Username, Password);
+            await ((SimpleAuthProvider)AuthProvider).LoginASync(Username, Password);
             NavManager.NavigateTo("/");
         }
         catch (Exception e)
