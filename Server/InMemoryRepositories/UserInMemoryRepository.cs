@@ -80,4 +80,16 @@ public class UserInMemoryRepository : IUserRepository
     {
         return users.AsQueryable();
     }
+
+    public async Task<User> GetByUsernameAsync(string username)
+    {
+        User? user = users.SingleOrDefault(p => p.Username.Equals(username));
+        if (user is null)
+        {
+            throw new InvalidOperationException(
+                $"User with username '{username}' not found");
+        }
+
+        return await Task.FromResult(user);
+    }
 }

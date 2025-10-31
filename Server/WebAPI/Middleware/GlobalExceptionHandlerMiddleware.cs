@@ -34,6 +34,15 @@ public class GlobalExceptionHandlerMiddleware : IMiddleware
             context.Response.StatusCode = 400; // Bad Request
             await context.Response.WriteAsync(ex.Message);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            var traceId = context.TraceIdentifier;
+            _logger.LogError(
+                $"Unauthorized request. Error occure while processing the request, TraceId : ${traceId}," +
+                $" Message : ${ex.Message}, StackTrace: ${ex.StackTrace}");
+            context.Response.StatusCode = 401; // Unauthorized
+            await context.Response.WriteAsync(ex.Message);
+        }
         catch (Exception ex)
         {
             var traceId = context.TraceIdentifier;
