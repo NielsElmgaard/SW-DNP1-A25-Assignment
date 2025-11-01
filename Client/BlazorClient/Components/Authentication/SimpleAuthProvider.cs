@@ -71,7 +71,24 @@ public class SimpleAuthProvider : AuthenticationStateProvider
         string serialisedData = JsonSerializer.Serialize(userDto);
         await jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser",
             serialisedData);
+        
+        await RefreshUser(userDto);
+        
+    }
 
+    public async Task Logout()
+    {
+        await jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser",
+            "");
+        NotifyAuthenticationStateChanged(
+            Task.FromResult(new AuthenticationState(new())));
+    }
+    
+    public async Task RefreshUser(UserDTO userDto)
+    {
+        string serializedData = JsonSerializer.Serialize(userDto);
+        await jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", serializedData);
+        
         List<Claim> claims = new List<Claim>()
         {
             new Claim(ClaimTypes.Name, userDto.Username),
@@ -85,11 +102,4 @@ public class SimpleAuthProvider : AuthenticationStateProvider
         );
     }
 
-    public async Task Logout()
-    {
-        await jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser",
-            "");
-        NotifyAuthenticationStateChanged(
-            Task.FromResult(new AuthenticationState(new())));
-    }
 }

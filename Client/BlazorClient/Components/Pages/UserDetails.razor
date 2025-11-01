@@ -1,0 +1,19 @@
+﻿@page "/UserDetails"
+@inject NavigationManager NavManager
+
+<PageTitle>User Details</PageTitle>
+
+<h3>User Details</h3>
+<AuthorizeView>
+<Authorized>
+<button class="btn btn-dark"
+        @onclick="@(() => NavManager.NavigateTo("/EditUser"))"> Edit user
+</button>
+</Authorized>
+<NotAuthorized>
+        <NotAuthorizedContent/>
+</NotAuthorized>
+</AuthorizeView>
+@code {
+
+}

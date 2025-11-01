@@ -1,4 +1,7 @@
 ﻿@page "/Posts/{PostId:int}"
+@using System.Security.Claims
+@using ApiContracts_DTOs
+@using BlazorClient.Services
 @inject IPostService PostService
 @inject ICommentService CommentService
 
@@ -20,11 +23,13 @@ else
     @if (post.Comments != null)
     {
         <div class="mb-2 w-25">
-            <SearchBox Type="number" Label="Filter by User id" Placeholder="Enter user id"
+            <SearchBox Type="number" Label="Filter by User id"
+                       Placeholder="Enter user id"
                        OnSearchChanged="FilterByUserId"/>
         </div>
         <div class="mb-2 w-25">
-            <SearchBox Type="text" Label="Filter by Author" Placeholder="Enter author"
+            <SearchBox Type="text" Label="Filter by Author"
+                       Placeholder="Enter author"
                        OnSearchChanged="FilterByAuthor"/>
         </div>
         <div class="mb-2 w-25">
@@ -34,40 +39,49 @@ else
         </div>
         <CommentList Comments="filteredComments"/>
     }
-    
+
     <hr/>
-    
+
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
         <p class="text-danger">@errorMessage</p>
     }
+
+
     <p class="h5">Create Comment:</p>
-    <input type="number" @bind="commentUserId"
-           placeholder="Enter your User Id"
-           class="text-center form-control-lg mb-2 px-3 py-2 d-inline-block"/>
-    <textarea @bind="commentBody" placeholder="Write your comment here"
-              class="form-control mb-2"/>
-    <button class="btn btn-dark"
-            @onclick="async ()=> await CreateComment(commentBody,commentUserId)">
-        Submit
-    </button>
+    <AuthorizeView>
+        <Authorized>
+            <textarea @bind="commentBody" placeholder="Write your comment here"
+                      class="form-control mb-2"/>
+            <button class="btn btn-dark"
+                    @onclick="async () => await CreateComment(commentBody)">
+                Submit
+            </button>
+        </Authorized>
+        <NotAuthorized>
+            <p>You'll have to log in to comment!</p>
+            <a href="/login" class="btn btn-primary">Go to Login</a>
+        </NotAuthorized>
+    </AuthorizeView>
 }
 
 @code {
     [Parameter] public int PostId { get; set; }
 
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+
+
     private PostWithCommentsDTO? post;
-    
+
     private IEnumerable<CommentDTO>? filteredComments = Enumerable.Empty<CommentDTO>();
 
     private string commentBody { get; set; } = string.Empty;
-    private int? commentUserId { get; set; } = null; // No authentication yet
+    private int? commentUserId { get; set; } = null;
     private string? errorMessage;
 
-    
+
     private string userIdFilter = string.Empty;
     private string authorFilter = string.Empty;
-    private string postIdFilter = string.Empty;
     private string sortByFilter = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -76,11 +90,14 @@ else
         filteredComments = post.Comments;
     }
 
-    private async Task CreateComment(string body, int? userid)
+    private async Task CreateComment(string body)
     {
         try
         {
-            CreateCommentDTO commentRequest = new CreateCommentDTO { Body = body, PostId = PostId, UserId = userid };
+            var state = await State;
+            var user = state.User;
+            int userId = int.Parse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            CreateCommentDTO commentRequest = new CreateCommentDTO { Body = body, PostId = PostId, UserId = userId };
             await CommentService.CreateCommentAsync(commentRequest);
             var refreshedPost = await PostService.GetSinglePostByIdAsync(PostId, "comments");
             if (refreshedPost != null)
@@ -98,31 +115,26 @@ else
             errorMessage = e.Message;
         }
     }
-    
+
     private async Task FilterByUserId(string userid)
     {
         userIdFilter = userid;
         await FilterComments();
     }
-    
+
     private async Task FilterByAuthor(string author)
     {
         authorFilter = author;
         await FilterComments();
     }
-    
-    private async Task FilterByPostId(string postid)
-    {
-        postIdFilter = postid;
-        await FilterComments();
-    }
+
 
     private async Task FilterBySortBy(string sortBy)
     {
         sortByFilter = sortBy;
         await FilterComments();
     }
-    
+
     private async Task FilterComments()
     {
         int? userIdQueryParameter = null;
@@ -132,7 +144,7 @@ else
         {
             userIdQueryParameter = userid;
         }
-        
+
 
         filteredComments = await CommentService.GetCommentsAsync(userIdQueryParameter,
             string.IsNullOrWhiteSpace(authorFilter) ? null : authorFilter,

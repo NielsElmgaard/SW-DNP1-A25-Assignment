@@ -6,30 +6,37 @@
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable"
+     onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <span class="bi bi-house-door-fill-nav-menu"
+                      aria-hidden="true"></span> Home
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="posts">
-                <span class="bi bi-signpost-nav-menu" aria-hidden="true"></span> Posts
+                <span class="bi bi-signpost-nav-menu" aria-hidden="true"></span>
+                Posts
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="users">
-                <span class="bi bi-people-nav-menu" aria-hidden="true"></span> Users
+                <span class="bi bi-people-nav-menu" aria-hidden="true"></span>
+                Users
             </NavLink>
         </div>
-        
+
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="comments">
-                <span class="bi bi-chat-left-text-nav-menu" aria-hidden="true"></span> Comments
+                <span class="bi bi-chat-left-text-nav-menu"
+                      aria-hidden="true"></span> Comments
             </NavLink>
         </div>
     </nav>
 </div>
+
+}

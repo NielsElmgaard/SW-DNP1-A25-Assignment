@@ -1,0 +1,75 @@
+﻿@page "/EditUser"
+@using System.Security.Claims
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthProvider
+
+<AuthorizeView>
+    <Authorized>
+        <h3>EditUser</h3>
+
+        @if (!string.IsNullOrEmpty(LastSubmitResult))
+        {
+            <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
+                @LastSubmitResult
+            </h2>
+        }
+
+        <UpdateUserForm User="User"
+                        OnValidSubmit="ValidFormSubmitted"
+                        OnInvalidSubmit="InvalidFormSubmitted"/>
+    </Authorized>
+    <NotAuthorized>
+        <NotAuthorizedContent/>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+
+    UpdateUsernameDTO User = new UpdateUsernameDTO
+    {
+        Username = null,
+    };
+
+    string LastSubmitResult;
+    bool IsSucces;
+
+    async Task ValidFormSubmitted()
+    {
+        LastSubmitResult = "Submitting update...";
+        IsSucces = false;
+        try
+        {
+            var state = await State;
+            var user = state.User;
+            int userId = int.Parse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+
+            await UserService.UpdateUsernameAsync(userId, User);
+
+            await ((SimpleAuthProvider)AuthProvider).RefreshUser(new UserDTO
+            {
+                Id = userId,
+                Username = User.Username
+            });
+
+            LastSubmitResult = $"Success! User updated with ID: {userId}.";
+            IsSucces = true;
+
+            User = new UpdateUsernameDTO()
+            {
+                Username = null,
+            };
+        }
+        catch (Exception e)
+        {
+            LastSubmitResult = $"Server Error: {e.Message}";
+            IsSucces = false;
+        }
+    }
+
+    void InvalidFormSubmitted()
+    {
+        LastSubmitResult = "Failure! Please correct the highlighted errors.";
+        IsSucces = false;
+    }
+}

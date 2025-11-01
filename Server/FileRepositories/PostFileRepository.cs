@@ -88,8 +88,8 @@ public class PostFileRepository : IPostRepository
                 $"Post with ID '{id}' not found");
         }
         
-        postsAsJson = JsonSerializer.Serialize(posts);
-        await File.WriteAllTextAsync(filePath, postsAsJson);
+       // postsAsJson = JsonSerializer.Serialize(posts);
+       // await File.WriteAllTextAsync(filePath, postsAsJson);
         return post;
     }
 
