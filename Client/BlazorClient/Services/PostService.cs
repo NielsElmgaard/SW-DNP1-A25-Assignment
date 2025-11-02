@@ -63,15 +63,26 @@ public class PostService : IPostService
     }
     */
 
-    public async Task<PostWithCommentsDTO> GetSinglePostByIdAsync(int id, string? include)
+    public async Task<PostWithCommentsDTO> GetSinglePostByIdAsync(int id,
+        string? include)
     {
         HttpResponseMessage httpResponse =
             await _httpClient.GetAsync($"posts/{id}?include={include}");
         string response = await httpResponse.Content.ReadAsStringAsync();
-        if (!httpResponse.IsSuccessStatusCode)
+
+        if (httpResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null; // gracefully handle deleted posts
+        }
+
+        /*
+         if (!httpResponse.IsSuccessStatusCode)
         {
             throw new Exception(response);
         }
+        */
+
+        httpResponse.EnsureSuccessStatusCode();
 
         return JsonSerializer.Deserialize<PostWithCommentsDTO>(response,
             new JsonSerializerOptions

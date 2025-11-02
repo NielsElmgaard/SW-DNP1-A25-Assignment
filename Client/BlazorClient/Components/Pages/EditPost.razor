@@ -1,11 +1,9 @@
-﻿@page "/EditUser"
-@using System.Security.Claims
-@inject IUserService UserService
-@inject AuthenticationStateProvider AuthProvider
+﻿@page "/EditPost/{PostId:int}"
+@inject IPostService PostService
 
 <AuthorizeView>
     <Authorized>
-        <h3>Edit user</h3>
+        <h3>Edit post</h3>
 
         @if (!string.IsNullOrEmpty(LastSubmitResult))
         {
@@ -14,7 +12,7 @@
             </h2>
         }
 
-        <UpdateUserForm User="User"
+        <UpdatePostForm Post="Post"
                         OnValidSubmit="ValidFormSubmitted"
                         OnInvalidSubmit="InvalidFormSubmitted"/>
     </Authorized>
@@ -26,13 +24,27 @@
 @code {
     [CascadingParameter] public Task<AuthenticationState> State { get; set; }
 
-    UpdateUsernameDTO User = new UpdateUsernameDTO
+    [Parameter] public int PostId { get; set; }
+    
+    UpdatePostDTO Post = new UpdatePostDTO()
     {
-        Username = null,
+        Title = null,
+        Body = null
     };
 
     string LastSubmitResult;
     bool IsSucces;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var originalPost = await PostService.GetSinglePostByIdAsync(PostId,null);
+        Post = new UpdatePostDTO
+        {
+            Id = originalPost.Id,
+            Title = originalPost.Title,
+            Body = originalPost.Body
+        };
+    }
 
     async Task ValidFormSubmitted()
     {
@@ -40,30 +52,16 @@
         IsSucces = false;
         try
         {
-            AuthenticationState authenticationState = await State;
-            ClaimsPrincipal claimsPrincipal = authenticationState.User;
+            await PostService.UpdatePostAsync(Post.Id,Post);
+            
 
-            if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
-            {
-                // the user is not logged in
-                return;
-            }
-
-            int userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-            await UserService.UpdateUsernameAsync(userId, User);
-
-            await ((SimpleAuthProvider)AuthProvider).RefreshUser(new UserDTO
-            {
-                Id = userId,
-                Username = User.Username
-            });
-
-            LastSubmitResult = $"Success! User updated with ID: {userId}.";
+            LastSubmitResult = $"Success! Post updated with ID: {Post.Id}.";
             IsSucces = true;
 
-            User = new UpdateUsernameDTO()
+            Post = new UpdatePostDTO()
             {
-                Username = null,
+                Title = null,
+                Body = null
             };
         }
         catch (Exception e)

@@ -12,10 +12,17 @@ public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
     private readonly IMemoryCache _cache;
+    private readonly IPostRepository _postRepository;
+    private readonly ICommentRepository _commentRepository;
 
-    public UsersController(IUserRepository userRepository, IMemoryCache cache)
+    public UsersController(IUserRepository userRepository,
+        IPostRepository postRepository,
+        ICommentRepository commentRepository,
+        IMemoryCache cache)
     {
         _userRepository = userRepository;
+        _postRepository = postRepository;
+        _commentRepository = commentRepository;
         _cache = cache;
     }
 
@@ -46,7 +53,7 @@ public class UsersController : ControllerBase
             throw new ArgumentException(
                 $"Username is required and cannot be empty");
         }
-        
+
         if (string.IsNullOrWhiteSpace(request.Password))
         {
             throw new ArgumentException(
@@ -57,9 +64,9 @@ public class UsersController : ControllerBase
 
         User user = new(0, request.Username, request.Password);
         User created = await _userRepository.AddAsync(user);
-        
+
         CacheInvalidate(created.Id);
-        
+
         UserDTO dto = new()
         {
             Id = created.Id,
@@ -77,13 +84,13 @@ public class UsersController : ControllerBase
             throw new ArgumentException(
                 $"Username is required and cannot be empty");
         }
-        
+
         var user = await _userRepository.GetSingleAsync(id);
         if (user.Username != request.Username)
         {
             await VerifyUserNameIsAvailableAsync(request.Username);
         }
-        
+
         // Only update username
         user = new(user.Id, request.Username, user.Password);
 
@@ -110,9 +117,9 @@ public class UsersController : ControllerBase
             throw new ArgumentException(
                 $"Password is required and cannot be empty");
         }
-        
+
         var user = await _userRepository.GetSingleAsync(id);
-        
+
         // Only update password
         user = new(user.Id, user.Username, request.Password);
 
@@ -210,9 +217,47 @@ public class UsersController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteUser(int id)
     {
+        // Delete comments of the user
+        var comments = _commentRepository.GetMany().Where(c => c.UserId == id)
+            .ToList();
+        foreach (var comment in comments)
+        {
+            await _commentRepository.DeleteAsync(comment.Id);
+            _cache.Remove($"comment-{comment.Id}");
+            _cache.Remove($"post-{comment.PostId}Includecomments");
+        }
+
+        _cache.Remove("allComments");
+
+        // Delete all comments of the user's posts
+        var posts = _postRepository.GetMany().Where(p => p.UserId == id)
+            .ToList();
+        foreach (var post in posts)
+        {
+            // Delete all comments for this post, by anyone
+            var commentsOnPost = _commentRepository.GetMany()
+                .Where(c => c.PostId == post.Id).ToList();
+            foreach (var comment in commentsOnPost)
+            {
+                await _commentRepository.DeleteAsync(comment.Id);
+                _cache.Remove($"comment-{comment.Id}");
+                _cache.Remove($"post-{post.Id}Includecomments");
+            }
+
+            await _postRepository.DeleteAsync(post.Id);
+            _cache.Remove($"post-{post.Id}");
+            _cache.Remove($"post-{post.Id}Include");
+            _cache.Remove($"post-{post.Id}Includecomments");
+        }
+
+        _cache.Remove("allPosts");
+
+
+        // Delete the user
         await _userRepository.DeleteAsync(id);
 
         CacheInvalidate(id);
+
 
         return NoContent();
     }

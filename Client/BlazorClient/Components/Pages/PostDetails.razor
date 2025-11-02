@@ -1,9 +1,9 @@
 ﻿@page "/Posts/{PostId:int}"
 @using System.Security.Claims
-@using ApiContracts_DTOs
-@using BlazorClient.Services
 @inject IPostService PostService
 @inject ICommentService CommentService
+@inject NavigationManager NavManager
+
 
 @if (post == null)
 {
@@ -16,6 +16,14 @@ else
     <h1>@post.Title</h1>
     <p class="border text-center px-3 py-2 d-inline-block" id="post-author">
         Author: <span class="fw-semibold">@post.Author.Username</span></p>
+    @if (userId == post.UserId)
+    {
+        <button class="btn btn-dark"
+                @onclick="@(() => NavManager.NavigateTo($"/EditPost/{post.Id}"))">
+            Edit Post
+        </button>
+    }
+
     <div class="post-body">
         <p>@post.Body</p>
     </div>
@@ -70,6 +78,9 @@ else
 
     [CascadingParameter] public Task<AuthenticationState> State { get; set; }
 
+    AuthenticationState authenticationState;
+    int userId;
+
 
     private PostWithCommentsDTO? post;
 
@@ -87,6 +98,15 @@ else
     protected override async Task OnInitializedAsync()
     {
         post = await PostService.GetSinglePostByIdAsync(PostId, "comments");
+
+        authenticationState = await State;
+        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+        if (claimsPrincipal.Identity is not null && claimsPrincipal.Identity.IsAuthenticated)
+        {
+            userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        }
+
         filteredComments = post.Comments;
     }
 
@@ -94,9 +114,16 @@ else
     {
         try
         {
-            var state = await State;
-            var user = state.User;
-            int userId = int.Parse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            authenticationState = await State;
+            ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+            if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
+            {
+                // the user is not logged in
+                return;
+            }
+
+            userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             CreateCommentDTO commentRequest = new CreateCommentDTO { Body = body, PostId = PostId, UserId = userId };
             await CommentService.CreateCommentAsync(commentRequest);
             var refreshedPost = await PostService.GetSinglePostByIdAsync(PostId, "comments");

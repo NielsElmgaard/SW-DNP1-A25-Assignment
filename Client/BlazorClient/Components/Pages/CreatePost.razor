@@ -1,5 +1,7 @@
 ﻿@page "/CreatePost"
+@using System.Security.Claims
 @inject IPostService PostService
+@inject AuthenticationStateProvider AuthStateProvider
 <h3>Create Post</h3>
 
 @if (!string.IsNullOrEmpty(LastSubmitResult))
@@ -13,6 +15,7 @@
           OnInvalidSubmit="InvalidFormSubmitted"/>
 
 @code {
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
 
     CreatePostDTO Post = new CreatePostDTO
     {
@@ -27,6 +30,19 @@
 
     async Task ValidFormSubmitted()
     {
+        AuthenticationState authenticationState = await State;
+        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+        if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
+        {
+            // the user is not logged in
+            LastSubmitResult = "You must be logged in to create a post.";
+            IsSucces = false;
+            return;
+        }
+
+        Post.UserId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        
         LastSubmitResult = "Submitting post...";
         IsSucces = false;
         try
