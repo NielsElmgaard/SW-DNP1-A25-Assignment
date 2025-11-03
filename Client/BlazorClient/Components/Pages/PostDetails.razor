@@ -3,6 +3,8 @@
 @inject IPostService PostService
 @inject ICommentService CommentService
 @inject NavigationManager NavManager
+@inject AuthenticationStateProvider AuthProvider
+
 
 
 @if (post == null)
@@ -21,6 +23,10 @@ else
         <button class="btn btn-dark"
                 @onclick="@(() => NavManager.NavigateTo($"/EditPost/{post.Id}"))">
             Edit Post
+        </button>
+        <button class="btn btn-dark"
+                @onclick="DeletePost">
+            Delete Post
         </button>
     }
 
@@ -178,6 +184,19 @@ else
             null,
             string.IsNullOrWhiteSpace(sortByFilter) ? null : sortByFilter
         );
+    }
+
+    private async Task DeletePost()
+    {
+        try
+        {
+            await PostService.DeletePostAsync(PostId);
+            NavManager.NavigateTo("/posts");
+        }
+        catch (Exception e)
+        {
+            errorMessage = $"Server Error: {e.Message}";
+        }
     }
 
 }
