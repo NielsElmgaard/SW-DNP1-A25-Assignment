@@ -1,9 +1,24 @@
-﻿<tr>
+﻿@inject NavigationManager NavManager
+<tr>
     <td>@Comment.Body</td>
     <td>@Comment.Author?.Username</td>
+    <td>@if (Comment.UserId == CurrentUserId)
+        {
+            <button class="btn btn-dark"
+                    @onclick="() => OnDelete.InvokeAsync(Comment.Id)">
+                Delete Comment
+            </button>
+            <button class="btn btn-dark"
+                    @onclick="@(() => NavManager.NavigateTo($"/comments/{Comment.Id}/edit"))">
+                Edit Comment
+            </button>
+        }</td>
 </tr>
 
 @code {
     [Parameter]
     public CommentDTO Comment { get; set; } = default!;
+    
+    [Parameter] public int CurrentUserId { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
 }

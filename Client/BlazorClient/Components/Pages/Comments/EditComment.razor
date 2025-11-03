@@ -1,10 +1,11 @@
-﻿@page "/EditPost/{PostId:int}"
-@inject IPostService PostService
+﻿@page "/comments/{CommentId:int}/edit"
+@inject ICommentService CommentService
+@inject NavigationManager NavManager
 
+<PageTitle>Edit Comment</PageTitle>
+<h3>Edit Comment</h3>
 <AuthorizeView>
     <Authorized>
-        <h3>Edit post</h3>
-
         @if (!string.IsNullOrEmpty(LastSubmitResult))
         {
             <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
@@ -12,7 +13,7 @@
             </h2>
         }
 
-        <UpdatePostForm Post="Post"
+        <UpdateCommentForm Comment="Comment"
                         OnValidSubmit="ValidFormSubmitted"
                         OnInvalidSubmit="InvalidFormSubmitted"/>
     </Authorized>
@@ -24,11 +25,12 @@
 @code {
     [CascadingParameter] public Task<AuthenticationState> State { get; set; }
 
-    [Parameter] public int PostId { get; set; }
+    [Parameter] public int CommentId { get; set; }
+
+    private int postId;
     
-    UpdatePostDTO Post = new UpdatePostDTO()
+    UpdateCommentDTO Comment = new UpdateCommentDTO()
     {
-        Title = null,
         Body = null
     };
 
@@ -37,12 +39,12 @@
     
     protected override async Task OnInitializedAsync()
     {
-        var originalPost = await PostService.GetSinglePostByIdAsync(PostId,null);
-        Post = new UpdatePostDTO
+        var originalComment = await CommentService.GetSingleCommentByIdAsync(CommentId);
+        postId = originalComment.PostId;
+        Comment = new UpdateCommentDTO()
         {
-            Id = originalPost.Id,
-            Title = originalPost.Title,
-            Body = originalPost.Body
+            Id = originalComment.Id,
+            Body = originalComment.Body
         };
     }
 
@@ -52,17 +54,18 @@
         IsSucces = false;
         try
         {
-            await PostService.UpdatePostAsync(Post.Id,Post);
+            await CommentService.UpdateCommentAsync(Comment.Id,Comment);
             
 
-            LastSubmitResult = $"Success! Post updated with ID: {Post.Id}.";
+            LastSubmitResult = $"Success! Comment updated with ID: {Comment.Id}.";
             IsSucces = true;
 
-            Post = new UpdatePostDTO()
+            Comment = new UpdateCommentDTO()
             {
-                Title = null,
                 Body = null
             };
+            NavManager.NavigateTo($"/Posts/{postId}");
+
         }
         catch (Exception e)
         {

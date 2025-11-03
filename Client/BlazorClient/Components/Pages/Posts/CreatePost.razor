@@ -1,18 +1,27 @@
-﻿@page "/CreatePost"
+﻿@page "/posts/new"
 @using System.Security.Claims
 @inject IPostService PostService
 @inject AuthenticationStateProvider AuthStateProvider
 <h3>Create Post</h3>
 
-@if (!string.IsNullOrEmpty(LastSubmitResult))
-{
-    <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
-        @LastSubmitResult
-    </h2>
-}
-<PostForm Post="Post"
-          OnValidSubmit="ValidFormSubmitted"
-          OnInvalidSubmit="InvalidFormSubmitted"/>
+<AuthorizeView>
+    <Authorized>
+
+        @if (!string.IsNullOrEmpty(LastSubmitResult))
+        {
+            <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
+                @LastSubmitResult
+            </h2>
+        }
+        <PostForm Post="Post"
+                  OnValidSubmit="ValidFormSubmitted"
+                  OnInvalidSubmit="InvalidFormSubmitted"/>
+
+    </Authorized>
+    <NotAuthorized>
+        <NotAuthorizedContent/>
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
     [CascadingParameter] public Task<AuthenticationState> State { get; set; }
@@ -42,7 +51,7 @@
         }
 
         Post.UserId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        
+
         LastSubmitResult = "Submitting post...";
         IsSucces = false;
         try

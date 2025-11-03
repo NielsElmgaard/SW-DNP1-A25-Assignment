@@ -1,0 +1,20 @@
+﻿<EditForm Model=@Comment OnValidSubmit=@OnValidSubmit
+          OnInvalidSubmit=@OnInvalidSubmit>
+    <DataAnnotationsValidator/>
+    <ValidationSummary class="alert alert-warning"/>
+    <div class="form-group">
+        <label for="Body">Body</label>
+        <InputText @bind-Value="Comment.Body" class="form-control" id="Body"/>
+        <ValidationMessage For="@(() => Comment.Body)"/>
+    </div>
+    <input type="submit" class="btn btn-primary" value="Save"/>
+</EditForm>
+
+
+@code {
+    [Parameter] public UpdateCommentDTO Comment { get; set; }
+
+    [Parameter] public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter] public EventCallback OnInvalidSubmit { get; set; }
+}

@@ -1,5 +1,6 @@
-﻿@page "/EditUser"
+﻿@page "/users/{UserId:int}/edit"
 @using System.Security.Claims
+@using ApiContracts_DTOs.Users
 @inject IUserService UserService
 @inject AuthenticationStateProvider AuthProvider
 
@@ -26,14 +27,28 @@
 @code {
     [CascadingParameter] public Task<AuthenticationState> State { get; set; }
 
-    UpdateUsernameDTO User = new UpdateUsernameDTO
+    [Parameter] public int UserId { get; set; }
+
+    UpdateUserDTO User = new UpdateUserDTO()
     {
         Username = null,
+        Password = null
     };
 
     string LastSubmitResult;
     bool IsSucces;
 
+    protected override async Task OnInitializedAsync()
+    {
+        var originalUser = await UserService.GetSingleUserByIdAsync(UserId);
+        User = new UpdateUserDTO()
+        {
+            Id = originalUser.Id,
+            Username = originalUser.Username,
+            Password = null
+        };
+    }
+    
     async Task ValidFormSubmitted()
     {
         LastSubmitResult = "Submitting update...";
@@ -50,7 +65,7 @@
             }
 
             int userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-            await UserService.UpdateUsernameAsync(userId, User);
+            await UserService.UpdateUser(userId, User);
 
             await ((SimpleAuthProvider)AuthProvider).RefreshUser(new UserDTO
             {
@@ -61,9 +76,10 @@
             LastSubmitResult = $"Success! User updated with ID: {userId}.";
             IsSucces = true;
 
-            User = new UpdateUsernameDTO()
+            User = new UpdateUserDTO()
             {
                 Username = null,
+                Password = null
             };
         }
         catch (Exception e)
@@ -78,4 +94,5 @@
         LastSubmitResult = "Failure! Please correct the highlighted errors.";
         IsSucces = false;
     }
+
 }

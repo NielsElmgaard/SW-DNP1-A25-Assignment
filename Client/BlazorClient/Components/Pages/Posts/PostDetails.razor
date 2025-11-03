@@ -21,11 +21,11 @@ else
     @if (userId == post.UserId)
     {
         <button class="btn btn-dark"
-                @onclick="@(() => NavManager.NavigateTo($"/EditPost/{post.Id}"))">
+                @onclick="@(() => NavManager.NavigateTo($"/posts/{post.Id}/edit"))">
             Edit Post
         </button>
         <button class="btn btn-dark"
-                @onclick="DeletePost">
+                @onclick="async () => await DeletePost()">
             Delete Post
         </button>
     }
@@ -51,7 +51,7 @@ else
                        Placeholder="Enter sort by"
                        OnSearchChanged="FilterBySortBy"/>
         </div>
-        <CommentList Comments="filteredComments"/>
+        <CommentList Comments="filteredComments" CurrentUserId="userId" OnDelete="DeleteComment"/>
     }
 
     <hr/>
@@ -196,6 +196,20 @@ else
         catch (Exception e)
         {
             errorMessage = $"Server Error: {e.Message}";
+        }
+    }
+
+    private async Task DeleteComment(int commentId)
+    {
+        try
+        {
+            await CommentService.DeleteCommentAsync(commentId);
+            post = await PostService.GetSinglePostByIdAsync(PostId, "comments");
+            filteredComments = post.Comments;
+        }
+        catch (Exception e)
+        {
+            errorMessage = e.Message;
         }
     }
 
