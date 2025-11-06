@@ -1,6 +1,7 @@
 ﻿@using System.Security.Claims
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager NavManager
 
 <div class="page">
     <div class="sidebar">
@@ -14,6 +15,10 @@
                 <Authorized>
                     <span>Hello, <a
                             href="/users/@(userId)">@context.User.Identity?.Name</a></span>
+                    <button class="btn btn-dark"
+                            @onclick="async () => await LogOut()">
+                        Log out
+                    </button>
                 </Authorized>
             </AuthorizeView>
         </div>
@@ -50,4 +55,12 @@
 
         userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
     }
+
+    private async Task LogOut()
+    {
+        await ((SimpleAuthProvider)AuthProvider).Logout();
+        NavManager.NavigateTo("/login");
+
+    }
+
 }

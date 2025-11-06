@@ -19,11 +19,16 @@ builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<AuthenticationStateProvider, SimpleAuthProvider>();
 
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("OG", policy =>
-        policy.RequireClaim(ClaimTypes.NameIdentifier));
+        policy.RequireAssertion(context =>
+            context.User.HasClaim(claim =>
+                claim.Type == ClaimTypes.NameIdentifier &&
+                int.TryParse(claim.Value, out var id) && id <= 10)));
 });
+
 
 var app = builder.Build();
 

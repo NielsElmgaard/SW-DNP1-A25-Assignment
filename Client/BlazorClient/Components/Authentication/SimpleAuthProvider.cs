@@ -56,24 +56,24 @@ public class SimpleAuthProvider : AuthenticationStateProvider
             "auth/login",
             new LoginRequestDTO { Username = userName, Password = password });
 
-        string content = await response.Content.ReadAsStringAsync();
+        var content = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
         {
             throw new Exception(content);
         }
 
-        UserDTO userDto = JsonSerializer.Deserialize<UserDTO>(content,
+        // LoginResponseDTO instead of UserDTO for web api JWT testing (httpie)
+        LoginResponseDTO loginResponse = JsonSerializer.Deserialize<LoginResponseDTO>(content,
             new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             })!;
 
-        string serialisedData = JsonSerializer.Serialize(userDto);
+        string serialisedData = JsonSerializer.Serialize(loginResponse);
         await jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser",
             serialisedData);
-        
-        await RefreshUser(userDto);
-        
+
+        await RefreshUser(loginResponse.User);
     }
 
     public async Task Logout()
@@ -83,12 +83,13 @@ public class SimpleAuthProvider : AuthenticationStateProvider
         NotifyAuthenticationStateChanged(
             Task.FromResult(new AuthenticationState(new())));
     }
-    
+
     public async Task RefreshUser(UserDTO userDto)
     {
         string serializedData = JsonSerializer.Serialize(userDto);
-        await jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser", serializedData);
-        
+        await jsRuntime.InvokeVoidAsync("sessionStorage.setItem", "currentUser",
+            serializedData);
+
         List<Claim> claims = new List<Claim>()
         {
             new Claim(ClaimTypes.Name, userDto.Username),
@@ -101,5 +102,4 @@ public class SimpleAuthProvider : AuthenticationStateProvider
             Task.FromResult(new AuthenticationState(claimsPrincipal))
         );
     }
-
 }

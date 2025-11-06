@@ -1,5 +1,6 @@
 ﻿@page "/"
 @inject NavigationManager NavMgr
+@inject AuthenticationStateProvider AuthProvider
 <PageTitle>Home</PageTitle>
 
 <h1>Reddit Clone</h1>
@@ -13,7 +14,14 @@
     </NotAuthorized>
 </AuthorizeView>
 <AuthorizeView Policy="OG">
-    <p>You are an OG!!</p>
+    <Authorized>
+        <div class="d-flex flex-column align-items-center mt-5">
+            <img width="150"
+                 src="https://media.tenor.com/DFnKoaU_xBQAAAAM/snoop-dogg-dance.gif"
+                 alt="THE REAL O.G.!"/>
+        </div>
+    </Authorized>
+
 </AuthorizeView>
 Here you can browse interesting posts.
 <button @onclick='() => NavMgr.NavigateTo("login")'>go to login</button>

@@ -1,7 +1,10 @@
-﻿using ApiContracts_DTOs;
+﻿using System.Security.Claims;
+using System.Text;
+using ApiContracts_DTOs;
 using Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using RepositoryContracts;
 using StudHub.SharedDTO;
 
@@ -37,20 +40,41 @@ public class AuthController : ControllerBase
             throw new UnauthorizedAccessException("Incorrect password");
         }
 
-        var dto = new UserDTO
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Username)
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SuperSecretKeyThatIsAtMinimum32CharactersLong"));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(
+            issuer: "your-issuer",
+            audience: "your-audience",
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: creds
+        );
+
+        var jwt = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(token);
+
+        var userDto = new UserDTO
         {
             Id = user.Id,
             Username = user.Username
         };
 
-        return Ok(dto);
+        return Ok(new { User = userDto, Token = jwt });
     }
 
-    [HttpGet("idsUnder10")]
+    // For web api JWT testing (httpie)
+    [HttpGet("isOG")]
     [Authorize(Policy = "OG")]
     public IActionResult GetOGStatus()
     {
-        var username = User.Identity?.Name;
-        return Ok(username);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Ok(new { UserId = userId });
     }
+
 }

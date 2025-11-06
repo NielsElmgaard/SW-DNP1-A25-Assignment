@@ -20,7 +20,10 @@ builder.Services.AddScoped<IUserRepository, UserFileRepository>();
 builder.Services.AddScoped<ICommentRepository, CommentFileRepository>();
 builder.Services.AddScoped<GlobalExceptionHandlerMiddleware>();
 
-// Add JWT authentication
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddAuthorizationCore();
+
+// Add JWT authentication For web api JWT testing (httpie)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -56,8 +59,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+
 app.UseHttpsRedirection();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
