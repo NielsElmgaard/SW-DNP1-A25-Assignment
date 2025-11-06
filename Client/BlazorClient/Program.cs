@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BlazorClient.Components;
 using BlazorClient.Components.Authentication;
 using BlazorClient.Services;
@@ -18,6 +19,12 @@ builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<AuthenticationStateProvider, SimpleAuthProvider>();
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("OG", policy =>
+        policy.RequireClaim(ClaimTypes.NameIdentifier));
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -27,6 +34,8 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
+app.UseAuthorization();
 
 app.UseHttpsRedirection();
 

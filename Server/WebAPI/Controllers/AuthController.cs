@@ -1,5 +1,6 @@
 ﻿using ApiContracts_DTOs;
 using Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
 using StudHub.SharedDTO;
@@ -43,5 +44,13 @@ public class AuthController : ControllerBase
         };
 
         return Ok(dto);
+    }
+
+    [HttpGet("idsUnder10")]
+    [Authorize(Policy = "OG")]
+    public IActionResult GetOGStatus()
+    {
+        var username = User.Identity?.Name;
+        return Ok(username);
     }
 }
