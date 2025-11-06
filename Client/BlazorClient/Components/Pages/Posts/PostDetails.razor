@@ -1,6 +1,11 @@
 ﻿@page "/Posts/{PostId:int}"
+@using System.Security.Claims
 @inject IPostService PostService
 @inject ICommentService CommentService
+@inject NavigationManager NavManager
+@inject AuthenticationStateProvider AuthProvider
+
+
 
 @if (post == null)
 {
@@ -13,6 +18,18 @@ else
     <h1>@post.Title</h1>
     <p class="border text-center px-3 py-2 d-inline-block" id="post-author">
         Author: <span class="fw-semibold">@post.Author.Username</span></p>
+    @if (userId == post.UserId)
+    {
+        <button class="btn btn-dark"
+                @onclick="@(() => NavManager.NavigateTo($"/posts/{post.Id}/edit"))">
+            Edit Post
+        </button>
+        <button class="btn btn-dark"
+                @onclick="async () => await DeletePost()">
+            Delete Post
+        </button>
+    }
+
     <div class="post-body">
         <p>@post.Body</p>
     </div>
@@ -20,11 +37,13 @@ else
     @if (post.Comments != null)
     {
         <div class="mb-2 w-25">
-            <SearchBox Type="number" Label="Filter by User id" Placeholder="Enter user id"
+            <SearchBox Type="number" Label="Filter by User id"
+                       Placeholder="Enter user id"
                        OnSearchChanged="FilterByUserId"/>
         </div>
         <div class="mb-2 w-25">
-            <SearchBox Type="text" Label="Filter by Author" Placeholder="Enter author"
+            <SearchBox Type="text" Label="Filter by Author"
+                       Placeholder="Enter author"
                        OnSearchChanged="FilterByAuthor"/>
         </div>
         <div class="mb-2 w-25">
@@ -32,55 +51,86 @@ else
                        Placeholder="Enter sort by"
                        OnSearchChanged="FilterBySortBy"/>
         </div>
-        <CommentList Comments="filteredComments"/>
+        <CommentList Comments="filteredComments" CurrentUserId="userId" OnDelete="DeleteComment"/>
     }
-    
+
     <hr/>
-    
+
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
         <p class="text-danger">@errorMessage</p>
     }
+
+
     <p class="h5">Create Comment:</p>
-    <input type="number" @bind="commentUserId"
-           placeholder="Enter your User Id"
-           class="text-center form-control-lg mb-2 px-3 py-2 d-inline-block"/>
-    <textarea @bind="commentBody" placeholder="Write your comment here"
-              class="form-control mb-2"/>
-    <button class="btn btn-dark"
-            @onclick="async ()=> await CreateComment(commentBody,commentUserId)">
-        Submit
-    </button>
+    <AuthorizeView>
+        <Authorized>
+            <textarea @bind="commentBody" placeholder="Write your comment here"
+                      class="form-control mb-2"/>
+            <button class="btn btn-dark"
+                    @onclick="async () => await CreateComment(commentBody)">
+                Submit
+            </button>
+        </Authorized>
+        <NotAuthorized>
+            <p>You'll have to log in to comment!</p>
+            <a href="/login" class="btn btn-primary">Go to Login</a>
+        </NotAuthorized>
+    </AuthorizeView>
 }
 
 @code {
     [Parameter] public int PostId { get; set; }
 
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+
+    AuthenticationState authenticationState;
+    int userId;
+
+
     private PostWithCommentsDTO? post;
-    
+
     private IEnumerable<CommentDTO>? filteredComments = Enumerable.Empty<CommentDTO>();
 
     private string commentBody { get; set; } = string.Empty;
-    private int? commentUserId { get; set; } = null; // No authentication yet
+    private int? commentUserId { get; set; } = null;
     private string? errorMessage;
 
-    
+
     private string userIdFilter = string.Empty;
     private string authorFilter = string.Empty;
-    private string postIdFilter = string.Empty;
     private string sortByFilter = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         post = await PostService.GetSinglePostByIdAsync(PostId, "comments");
+
+        authenticationState = await State;
+        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+        if (claimsPrincipal.Identity is not null && claimsPrincipal.Identity.IsAuthenticated)
+        {
+            userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        }
+
         filteredComments = post.Comments;
     }
 
-    private async Task CreateComment(string body, int? userid)
+    private async Task CreateComment(string body)
     {
         try
         {
-            CreateCommentDTO commentRequest = new CreateCommentDTO { Body = body, PostId = PostId, UserId = userid };
+            authenticationState = await State;
+            ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+            if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
+            {
+                // the user is not logged in
+                return;
+            }
+
+            userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            CreateCommentDTO commentRequest = new CreateCommentDTO { Body = body, PostId = PostId, UserId = userId };
             await CommentService.CreateCommentAsync(commentRequest);
             var refreshedPost = await PostService.GetSinglePostByIdAsync(PostId, "comments");
             if (refreshedPost != null)
@@ -98,31 +148,26 @@ else
             errorMessage = e.Message;
         }
     }
-    
+
     private async Task FilterByUserId(string userid)
     {
         userIdFilter = userid;
         await FilterComments();
     }
-    
+
     private async Task FilterByAuthor(string author)
     {
         authorFilter = author;
         await FilterComments();
     }
-    
-    private async Task FilterByPostId(string postid)
-    {
-        postIdFilter = postid;
-        await FilterComments();
-    }
+
 
     private async Task FilterBySortBy(string sortBy)
     {
         sortByFilter = sortBy;
         await FilterComments();
     }
-    
+
     private async Task FilterComments()
     {
         int? userIdQueryParameter = null;
@@ -132,13 +177,40 @@ else
         {
             userIdQueryParameter = userid;
         }
-        
+
 
         filteredComments = await CommentService.GetCommentsAsync(userIdQueryParameter,
             string.IsNullOrWhiteSpace(authorFilter) ? null : authorFilter,
             null,
             string.IsNullOrWhiteSpace(sortByFilter) ? null : sortByFilter
         );
+    }
+
+    private async Task DeletePost()
+    {
+        try
+        {
+            await PostService.DeletePostAsync(PostId);
+            NavManager.NavigateTo("/posts");
+        }
+        catch (Exception e)
+        {
+            errorMessage = $"Server Error: {e.Message}";
+        }
+    }
+
+    private async Task DeleteComment(int commentId)
+    {
+        try
+        {
+            await CommentService.DeleteCommentAsync(commentId);
+            post = await PostService.GetSinglePostByIdAsync(PostId, "comments");
+            filteredComments = post.Comments;
+        }
+        catch (Exception e)
+        {
+            errorMessage = e.Message;
+        }
     }
 
 }

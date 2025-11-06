@@ -1,0 +1,82 @@
+﻿@page "/comments/{CommentId:int}/edit"
+@inject ICommentService CommentService
+@inject NavigationManager NavManager
+
+<PageTitle>Edit Comment</PageTitle>
+<h3>Edit Comment</h3>
+<AuthorizeView>
+    <Authorized>
+        @if (!string.IsNullOrEmpty(LastSubmitResult))
+        {
+            <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
+                @LastSubmitResult
+            </h2>
+        }
+
+        <UpdateCommentForm Comment="Comment"
+                        OnValidSubmit="ValidFormSubmitted"
+                        OnInvalidSubmit="InvalidFormSubmitted"/>
+    </Authorized>
+    <NotAuthorized>
+        <NotAuthorizedContent/>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+
+    [Parameter] public int CommentId { get; set; }
+
+    private int postId;
+    
+    UpdateCommentDTO Comment = new UpdateCommentDTO()
+    {
+        Body = null
+    };
+
+    string LastSubmitResult;
+    bool IsSucces;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var originalComment = await CommentService.GetSingleCommentByIdAsync(CommentId);
+        postId = originalComment.PostId;
+        Comment = new UpdateCommentDTO()
+        {
+            Id = originalComment.Id,
+            Body = originalComment.Body
+        };
+    }
+
+    async Task ValidFormSubmitted()
+    {
+        LastSubmitResult = "Submitting update...";
+        IsSucces = false;
+        try
+        {
+            await CommentService.UpdateCommentAsync(Comment.Id,Comment);
+            
+
+            LastSubmitResult = $"Success! Comment updated with ID: {Comment.Id}.";
+            IsSucces = true;
+
+            Comment = new UpdateCommentDTO()
+            {
+                Body = null
+            };
+            NavManager.NavigateTo($"/Posts/{postId}");
+
+        }
+        catch (Exception e)
+        {
+            LastSubmitResult = $"Server Error: {e.Message}";
+            IsSucces = false;
+        }
+    }
+
+    void InvalidFormSubmitted()
+    {
+        LastSubmitResult = "Failure! Please correct the highlighted errors.";
+        IsSucces = false;
+    }
+}

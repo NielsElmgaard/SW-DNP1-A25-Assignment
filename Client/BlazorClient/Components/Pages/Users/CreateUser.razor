@@ -1,4 +1,4 @@
-﻿@page "/CreateUser"
+﻿@page "/users/new"
 @inject IUserService UserService
 <h3>Create User</h3>
 
@@ -26,7 +26,7 @@
 
     async Task ValidFormSubmitted()
     {
-        LastSubmitResult = "Submitting post...";
+        LastSubmitResult = "Submitting user...";
         IsSucces = false;
         try
         {

@@ -1,0 +1,98 @@
+﻿@page "/users/{UserId:int}/edit"
+@using System.Security.Claims
+@using ApiContracts_DTOs.Users
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthProvider
+
+<AuthorizeView>
+    <Authorized>
+        <h3>Edit user</h3>
+
+        @if (!string.IsNullOrEmpty(LastSubmitResult))
+        {
+            <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
+                @LastSubmitResult
+            </h2>
+        }
+
+        <UpdateUserForm User="User"
+                        OnValidSubmit="ValidFormSubmitted"
+                        OnInvalidSubmit="InvalidFormSubmitted"/>
+    </Authorized>
+    <NotAuthorized>
+        <NotAuthorizedContent/>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+
+    [Parameter] public int UserId { get; set; }
+
+    UpdateUserDTO User = new UpdateUserDTO()
+    {
+        Username = null,
+        Password = null
+    };
+
+    string LastSubmitResult;
+    bool IsSucces;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var originalUser = await UserService.GetSingleUserByIdAsync(UserId);
+        User = new UpdateUserDTO()
+        {
+            Id = originalUser.Id,
+            Username = originalUser.Username,
+            Password = null
+        };
+    }
+    
+    async Task ValidFormSubmitted()
+    {
+        LastSubmitResult = "Submitting update...";
+        IsSucces = false;
+        try
+        {
+            AuthenticationState authenticationState = await State;
+            ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+            if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
+            {
+                // the user is not logged in
+                return;
+            }
+
+            int userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            await UserService.UpdateUser(userId, User);
+
+            await ((SimpleAuthProvider)AuthProvider).RefreshUser(new UserDTO
+            {
+                Id = userId,
+                Username = User.Username
+            });
+
+            LastSubmitResult = $"Success! User updated with ID: {userId}.";
+            IsSucces = true;
+
+            User = new UpdateUserDTO()
+            {
+                Username = null,
+                Password = null
+            };
+        }
+        catch (Exception e)
+        {
+            LastSubmitResult = $"Server Error: {e.Message}";
+            IsSucces = false;
+        }
+    }
+
+    void InvalidFormSubmitted()
+    {
+        LastSubmitResult = "Failure! Please correct the highlighted errors.";
+        IsSucces = false;
+    }
+
+}

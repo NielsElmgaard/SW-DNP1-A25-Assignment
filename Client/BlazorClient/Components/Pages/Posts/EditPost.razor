@@ -1,0 +1,82 @@
+﻿@page "/posts/{PostId:int}/edit"
+@inject IPostService PostService
+@inject NavigationManager NavManager
+
+<AuthorizeView>
+    <Authorized>
+        <h3>Edit post</h3>
+
+        @if (!string.IsNullOrEmpty(LastSubmitResult))
+        {
+            <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
+                @LastSubmitResult
+            </h2>
+        }
+
+        <UpdatePostForm Post="Post"
+                        OnValidSubmit="ValidFormSubmitted"
+                        OnInvalidSubmit="InvalidFormSubmitted"/>
+    </Authorized>
+    <NotAuthorized>
+        <NotAuthorizedContent/>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+
+    [Parameter] public int PostId { get; set; }
+    
+    UpdatePostDTO Post = new UpdatePostDTO()
+    {
+        Title = null,
+        Body = null
+    };
+
+    string LastSubmitResult;
+    bool IsSucces;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var originalPost = await PostService.GetSinglePostByIdAsync(PostId,null);
+        Post = new UpdatePostDTO
+        {
+            Id = originalPost.Id,
+            Title = originalPost.Title,
+            Body = originalPost.Body
+        };
+    }
+
+    async Task ValidFormSubmitted()
+    {
+        LastSubmitResult = "Submitting update...";
+        IsSucces = false;
+        try
+        {
+            await PostService.UpdatePostAsync(Post.Id,Post);
+            
+
+            LastSubmitResult = $"Success! Post updated with ID: {Post.Id}.";
+            IsSucces = true;
+
+            Post = new UpdatePostDTO()
+            {
+                Title = null,
+                Body = null
+            };
+            
+            NavManager.NavigateTo($"/Posts/{PostId}");
+        }
+        catch (Exception e)
+        {
+            LastSubmitResult = $"Server Error: {e.Message}";
+            IsSucces = false;
+        }
+    }
+
+    void InvalidFormSubmitted()
+    {
+        LastSubmitResult = "Failure! Please correct the highlighted errors.";
+        IsSucces = false;
+    }
+}

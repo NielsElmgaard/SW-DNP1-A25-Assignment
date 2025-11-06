@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using ApiContracts_DTOs;
+using ApiContracts_DTOs.Users;
 
 namespace BlazorClient.Services;
 
@@ -42,6 +43,17 @@ public class UserService : IUserService
     {
         HttpResponseMessage httpResponse =
             await _httpClient.PutAsJsonAsync($"users/{id}/password", request);
+        string response = await httpResponse.Content.ReadAsStringAsync();
+        if (!httpResponse.IsSuccessStatusCode)
+        {
+            throw new Exception(response);
+        }
+    }
+
+    public async Task UpdateUser(int id, UpdateUserDTO request)
+    {
+        HttpResponseMessage httpResponse =
+            await _httpClient.PutAsJsonAsync($"users/{id}/update", request);
         string response = await httpResponse.Content.ReadAsStringAsync();
         if (!httpResponse.IsSuccessStatusCode)
         {

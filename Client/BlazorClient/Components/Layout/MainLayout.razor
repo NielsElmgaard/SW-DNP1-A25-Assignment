@@ -1,4 +1,6 @@
-﻿@inherits LayoutComponentBase
+﻿@using System.Security.Claims
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthProvider
 
 <div class="page">
     <div class="sidebar">
@@ -6,10 +8,15 @@
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        <div
+            class="top-row px-4 d-flex justify-content-between align-items-center">
+            <AuthorizeView>
+                <Authorized>
+                    <span>Hello, <a
+                            href="/users/@(userId)">@context.User.Identity?.Name</a></span>
+                </Authorized>
+            </AuthorizeView>
         </div>
-
         <article class="content px-4">
             @Body
         </article>
@@ -21,3 +28,26 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code
+{
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+
+    private int userId;
+
+    AuthenticationState authenticationState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        authenticationState = await State;
+        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+        if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
+        {
+            // the user is not logged in
+            return;
+        }
+
+        userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+    }
+}

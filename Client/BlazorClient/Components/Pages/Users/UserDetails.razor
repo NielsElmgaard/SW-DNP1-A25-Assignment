@@ -1,0 +1,87 @@
+﻿@page "/users/{UserId:int}"
+@using System.Security.Claims
+@inject NavigationManager NavManager
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>User Details</PageTitle>
+
+<h3>User Details</h3>
+<AuthorizeView>
+        <Authorized>
+                @if (!string.IsNullOrEmpty(LastSubmitResult))
+                {
+                        <h2 class="alert @(IsSucces ? "alert-success" : "alert-danger")">
+                                @LastSubmitResult
+                        </h2>
+                }
+                <button class="btn btn-dark"
+                        @onclick="@(() => NavManager.NavigateTo($"/users/{userId}/edit"))">
+                        Edit user
+                </button>
+                <button class="btn btn-dark"
+                        @onclick="async () => await DeleteUser()">
+                        Delete user
+                </button>
+        </Authorized>
+        <NotAuthorized>
+                <NotAuthorizedContent/>
+        </NotAuthorized>
+</AuthorizeView>
+
+@code {
+        [CascadingParameter] public Task<AuthenticationState> State { get; set; }
+        
+        [Parameter] public int UserId { get; set; }
+        
+        string LastSubmitResult;
+        bool IsSucces;
+        private int userId;
+        
+        AuthenticationState authenticationState;
+        
+        protected override async Task OnInitializedAsync()
+        {
+                authenticationState = await State;
+                ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+                if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
+                {
+                        // the user is not logged in
+                        return;
+                }
+
+                userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                UserId = userId;
+        }
+        
+        private async Task DeleteUser()
+        {
+                try
+                {
+                        authenticationState = await State;
+                        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+
+                        if (claimsPrincipal.Identity is null || !claimsPrincipal.Identity.IsAuthenticated)
+                        {
+                                // the user is not logged in
+                                return;
+                        }
+
+                        userId = int.Parse(claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+                        await UserService.DeleteUserAsync(userId);
+                        await ((SimpleAuthProvider)AuthProvider).Logout();
+                        LastSubmitResult = $"Success! User deleted with ID: {userId}.";
+                        IsSucces = true;
+                        NavManager.NavigateTo("/login");
+                }
+                catch (Exception e)
+                {
+                        LastSubmitResult = $"Server Error: {e.Message}";
+                        IsSucces = false;
+                }
+        }
+
+
+}

@@ -1,4 +1,5 @@
-﻿<EditForm Model=@User OnValidSubmit=@OnValidSubmit
+﻿@using ApiContracts_DTOs.Users
+<EditForm Model=@User OnValidSubmit=@OnValidSubmit
           OnInvalidSubmit=@OnInvalidSubmit>
     <DataAnnotationsValidator/>
     <ValidationSummary class="alert alert-warning"/>
@@ -10,7 +11,8 @@
     </div>
     <div class="form-group">
         <label for="Password">Password</label>
-        <InputText type="password" @bind-Value="User.Password" class="form-control" id="Password"/>
+        <InputText @bind-Value="User.Password" class="form-control" id="Password"/>
+        <!-- Display specific error message -->
         <ValidationMessage For="@(() => User.Password)"/>
     </div>
     <input type="submit" class="btn btn-primary" value="Save"/>
@@ -18,7 +20,7 @@
 
 
 @code {
-    [Parameter] public CreateUserDTO User { get; set; }
+    [Parameter] public UpdateUserDTO User { get; set; }
     
     [Parameter] public EventCallback OnValidSubmit { get; set; }
 

@@ -7,12 +7,13 @@
             <tr>
                 <th>Comment</th>
                 <th>Author</th>
+                <th class="text-center">Actions</th>
             </tr>
             </thead>
             <tbody>
             @foreach (var comment in Comments)
             {
-                <CommentListItem Comment="comment"/>
+                <CommentListItem Comment="comment" CurrentUserId="CurrentUserId" OnDelete="OnDelete"/>
             }
             </tbody>
         </table>
@@ -27,4 +28,6 @@
 
 @code {
     [Parameter] public IEnumerable<CommentDTO> Comments { get; set; } = new List<CommentDTO>();
+    [Parameter] public int CurrentUserId { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
 }

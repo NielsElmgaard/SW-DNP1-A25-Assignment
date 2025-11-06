@@ -244,6 +244,17 @@ public class PostsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeletePost(int id)
     {
+        
+        var comments = _commentRepository.GetMany().Where(c => c.PostId == id)
+            .ToList();
+        foreach (var comment in comments)
+        {
+            await _commentRepository.DeleteAsync(comment.Id);
+            _cache.Remove($"comment-{comment.Id}");
+            _cache.Remove($"post-{comment.PostId}Includecomments");
+        }
+        _cache.Remove("allComments");
+
         await _postRepository.DeleteAsync(id);
 
         CacheInvalidate(id);
