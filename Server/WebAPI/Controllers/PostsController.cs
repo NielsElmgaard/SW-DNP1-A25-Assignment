@@ -2,6 +2,7 @@
 using Entities;
 using FileRepositories;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using RepositoryContracts;
 
@@ -49,7 +50,7 @@ public class PostsController : ControllerBase
                 $"Body is required and cannot be empty");
         }
         
-        Post post = new(0, request.Title, request.Body, request.UserId.Value);
+        Post post = new(0, request.Title, request.Body, request.UserId!.Value);
         Post created = await _postRepository.AddAsync(post);
         User author = await _userRepository.GetSingleAsync(created.UserId);
 
@@ -119,7 +120,7 @@ public class PostsController : ControllerBase
         if (!_cache.TryGetValue(allPostsCacheKey,
                 out IEnumerable<Post>? cachedPosts))
         {
-            cachedPosts = _postRepository.GetMany().ToList();
+            cachedPosts = await _postRepository.GetMany().ToListAsync();
             _cache.Set(allPostsCacheKey, cachedPosts,
                 new MemoryCacheEntryOptions()
                 {
@@ -127,7 +128,7 @@ public class PostsController : ControllerBase
                 });
         }
 
-        var filteredPosts = cachedPosts;
+        IEnumerable<Post> filteredPosts = cachedPosts;
 
         // Filters
         if (!string.IsNullOrWhiteSpace(title))
@@ -141,13 +142,13 @@ public class PostsController : ControllerBase
             filteredPosts = filteredPosts.Where(p => p.UserId == userid.Value);
         }
 
-        var userIds =
+        var userIds = 
             filteredPosts.Select(p => p.UserId).Distinct()
                 .ToList(); // no duplicates
         // Map to UserDTO
-        var users = _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
+        var users = await _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
             .Select(u => new UserDTO()
-                { Id = u.Id, Username = u.Username }).ToList();
+                { Id = u.Id, Username = u.Username }).ToListAsync();
 
         if (!string.IsNullOrWhiteSpace(authorName))
         {
@@ -194,14 +195,14 @@ public class PostsController : ControllerBase
         if (include != null &&
             include.Contains("comments", StringComparison.OrdinalIgnoreCase))
         {
-            var comments = _commentRepository.GetMany()
+            var comments =await _commentRepository.GetMany()
                 .Where(c => c.PostId == id)
-                .ToList();
+                .ToListAsync();
             var userIds = comments.Select(c => c.UserId).Distinct().ToList();
-            var users = _userRepository.GetMany()
+            var users = await _userRepository.GetMany()
                 .Where(u => userIds.Contains(u.Id))
                 .Select(u => new UserDTO()
-                    { Id = u.Id, Username = u.Username }).ToList();
+                    { Id = u.Id, Username = u.Username }).ToListAsync();
 
             dtoToCache = new PostWithCommentsDTO()
             {
@@ -245,14 +246,14 @@ public class PostsController : ControllerBase
     public async Task<ActionResult> DeletePost(int id)
     {
         
-        var comments = _commentRepository.GetMany().Where(c => c.PostId == id)
-            .ToList();
+        var comments = await _commentRepository.GetMany().Where(c => c.PostId == id)
+            .ToListAsync();
         foreach (var comment in comments)
         {
             await _commentRepository.DeleteAsync(comment.Id);
             _cache.Remove($"comment-{comment.Id}");
-            _cache.Remove($"post-{comment.PostId}Includecomments");
         }
+        _cache.Remove($"post-{id}Includecomments");
         _cache.Remove("allComments");
 
         await _postRepository.DeleteAsync(id);

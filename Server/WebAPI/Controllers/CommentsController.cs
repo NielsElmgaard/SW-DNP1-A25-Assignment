@@ -1,6 +1,7 @@
 ﻿using ApiContracts_DTOs;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using RepositoryContracts;
 
@@ -117,7 +118,7 @@ public class CommentsController : ControllerBase
         if (!_cache.TryGetValue(allCommentsCacheKey,
                 out IEnumerable<Comment>? cachedComments))
         {
-            cachedComments = _commentRepository.GetMany().ToList();
+            cachedComments = await _commentRepository.GetMany().ToListAsync();
             _cache.Set(allCommentsCacheKey, cachedComments,
                 new MemoryCacheEntryOptions()
                 {
@@ -141,11 +142,11 @@ public class CommentsController : ControllerBase
         }
 
         var userIds =
-            filteredComments.Select(c => c.UserId).Distinct(); // no duplicates
+            filteredComments.Select(c => c.UserId).Distinct().ToList(); // no duplicates
         // Map to UserDTO
-        var users = _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
+        var users = await _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
             .Select(u => new UserDTO()
-                { Id = u.Id, Username = u.Username }).ToList();
+                { Id = u.Id, Username = u.Username }).ToListAsync();
 
         if (!string.IsNullOrWhiteSpace(authorName))
         {

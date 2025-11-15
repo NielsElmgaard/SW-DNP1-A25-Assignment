@@ -2,6 +2,7 @@
 using ApiContracts_DTOs.Users;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using RepositoryContracts;
 
@@ -29,12 +30,21 @@ public class UsersController : ControllerBase
 
     private async Task VerifyUserNameIsAvailableAsync(string username)
     {
-        var users = _userRepository.GetMany();
-        if (users.Any(u =>
-                u.Username.Equals(username)))
+        try
         {
+            var user = await _userRepository.GetByUsernameAsync(username);
+
+            // User already exists
             throw new InvalidOperationException(
                 $"Username '{username}' is already taken.");
+        }
+        catch (InvalidOperationException e)
+        {
+            if (!e.Message.Contains("not found"))
+            {
+                throw; // some other error -> throw exception
+            }
+            // "not found" error from repository -> ignore catch since username is available then
         }
     }
 
@@ -42,6 +52,8 @@ public class UsersController : ControllerBase
     {
         _cache.Remove($"user-{id}");
         _cache.Remove("allUsers");
+        _cache.Remove("allPosts");
+        _cache.Remove("allComments");
     }
 
 
@@ -76,6 +88,7 @@ public class UsersController : ControllerBase
         return Created($"/Users/{dto.Id}", dto);
     }
 
+    /*
     [HttpPut("{id:int}")]
     public async Task<ActionResult<UpdateUsernameDTO>> UpdateUsername(int id,
         [FromBody] UserDTO request)
@@ -139,6 +152,7 @@ public class UsersController : ControllerBase
         // maybe not ideal to return password
         return Ok(dto);
     }
+    */
 
     [HttpPut("{id:int}/update")]
     public async Task<ActionResult<UserDTO>> UpdateUser(int id,
@@ -149,7 +163,7 @@ public class UsersController : ControllerBase
             throw new ArgumentException(
                 $"Username is required and cannot be empty");
         }
-        
+
         var user = await _userRepository.GetSingleAsync(id);
         if (user.Username != request.Username)
         {
@@ -157,29 +171,29 @@ public class UsersController : ControllerBase
         }
 
         // In EditUser Blazor Page, it will still work when you don't fill in password
-        if (request.Password==null)
+        if (request.Password == null)
         {
             request.Password = user.Password;
         }
-        
-       
+
+
         if (string.IsNullOrWhiteSpace(request.Password))
         {
             throw new ArgumentException(
                 $"Password is required and cannot be empty");
         }
-        
+
         user = new(user.Id, request.Username, request.Password);
 
-        
+
         await _userRepository.UpdateAsync(user);
 
         CacheInvalidate(id);
-        _cache.Remove("allComments");
-        _cache.Remove("allPosts");
-        
+
         // Since username should be changed in post details
-        var userPosts = _postRepository.GetMany().Where(p => p.UserId == id).ToList();
+        var userPosts = await _postRepository.GetMany()
+            .Where(p => p.UserId == id)
+            .ToListAsync();
         foreach (var post in userPosts)
         {
             _cache.Remove($"post-{post.Id}Include");
@@ -204,7 +218,7 @@ public class UsersController : ControllerBase
         if (!_cache.TryGetValue(allUsersCacheKey,
                 out IEnumerable<User>? cachedUsers))
         {
-            cachedUsers = _userRepository.GetMany().ToList();
+            cachedUsers = await _userRepository.GetMany().ToListAsync();
             _cache.Set(allUsersCacheKey, cachedUsers,
                 new MemoryCacheEntryOptions()
                 {
@@ -212,7 +226,7 @@ public class UsersController : ControllerBase
                 });
         }
 
-        var filteredUsers = cachedUsers;
+        var filteredUsers = cachedUsers.AsQueryable();
 
 
         // Filter
@@ -239,10 +253,10 @@ public class UsersController : ControllerBase
             }
         }
 
-        var users = filteredUsers.Select(u => new UserDTO
+        var users = await filteredUsers.Select(u => new UserDTO
         {
             Id = u.Id, Username = u.Username
-        }).ToList();
+        }).ToListAsync();
 
         return Ok(users);
     }
@@ -275,31 +289,20 @@ public class UsersController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteUser(int id)
     {
-        // Delete comments of the user
-        var comments = _commentRepository.GetMany().Where(c => c.UserId == id)
-            .ToList();
-        foreach (var comment in comments)
-        {
-            await _commentRepository.DeleteAsync(comment.Id);
-            _cache.Remove($"comment-{comment.Id}");
-            _cache.Remove($"post-{comment.PostId}Includecomments");
-        }
-
-        _cache.Remove("allComments");
-
         // Delete all comments of the user's posts
-        var posts = _postRepository.GetMany().Where(p => p.UserId == id)
-            .ToList();
-        foreach (var post in posts)
+        var userPosts = await _postRepository.GetMany()
+            .Where(p => p.UserId == id)
+            .ToListAsync();
+        foreach (var post in userPosts)
         {
             // Delete all comments for this post, by anyone
-            var commentsOnPost = _commentRepository.GetMany()
-                .Where(c => c.PostId == post.Id).ToList();
+            var commentsOnPost = await _commentRepository.GetMany()
+                .Where(c => c.PostId == post.Id).ToListAsync();
+
             foreach (var comment in commentsOnPost)
             {
                 await _commentRepository.DeleteAsync(comment.Id);
                 _cache.Remove($"comment-{comment.Id}");
-                _cache.Remove($"post-{post.Id}Includecomments");
             }
 
             await _postRepository.DeleteAsync(post.Id);
@@ -308,14 +311,20 @@ public class UsersController : ControllerBase
             _cache.Remove($"post-{post.Id}Includecomments");
         }
 
-        _cache.Remove("allPosts");
-
+        // Delete comments of the user
+        var userComments = await _commentRepository.GetMany()
+            .Where(c => c.UserId == id)
+            .ToListAsync();
+        foreach (var comment in userComments)
+        {
+            await _commentRepository.DeleteAsync(comment.Id);
+            _cache.Remove($"comment-{comment.Id}");
+        }
 
         // Delete the user
         await _userRepository.DeleteAsync(id);
 
         CacheInvalidate(id);
-
 
         return NoContent();
     }
