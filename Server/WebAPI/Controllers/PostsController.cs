@@ -27,11 +27,17 @@ public class PostsController : ControllerBase
         _cache = cache;
     }
 
-    private void CacheInvalidate(int id)
+    private void InvalidatePost(int postId)
     {
-        _cache.Remove($"post-{id}Include");
-        _cache.Remove($"post-{id}Includecomments");
-        _cache.Remove("allPosts");
+        _cache.Remove($"posts:{postId}");
+        _cache.Remove($"posts:{postId}:comments");
+        _cache.Remove("posts:all");
+    }
+
+    private void InvalidateComment(int commentId)
+    {
+        _cache.Remove($"comments:{commentId}");
+        _cache.Remove("comments:all");
     }
 
     [HttpPost]
@@ -43,19 +49,19 @@ public class PostsController : ControllerBase
             throw new ArgumentException(
                 $"Title is required and cannot be empty");
         }
-        
+
         if (string.IsNullOrWhiteSpace(request.Body))
         {
             throw new ArgumentException(
                 $"Body is required and cannot be empty");
         }
-        
+
         Post post = new(0, request.Title, request.Body, request.UserId!.Value);
         Post created = await _postRepository.AddAsync(post);
         User author = await _userRepository.GetSingleAsync(created.UserId);
 
         // Cache invalidation
-        CacheInvalidate(created.Id);
+        InvalidatePost(created.Id);
 
         PostDTO dto = new()
         {
@@ -77,13 +83,13 @@ public class PostsController : ControllerBase
             throw new ArgumentException(
                 $"Title is required and cannot be empty");
         }
-        
+
         if (string.IsNullOrWhiteSpace(request.Body))
         {
             throw new ArgumentException(
                 $"Body is required and cannot be empty");
         }
-        
+
         var post = await _postRepository.GetSingleAsync(id);
 
         // Only Title and Body updates
@@ -93,7 +99,7 @@ public class PostsController : ControllerBase
         await _postRepository.UpdateAsync(updatedPost);
 
         // Cache invalidation
-        CacheInvalidate(id);
+        InvalidatePost(id);
 
         var author = await _userRepository.GetSingleAsync(updatedPost.UserId);
 
@@ -115,13 +121,13 @@ public class PostsController : ControllerBase
         [FromQuery] int? userid,
         [FromQuery] string? authorName)
     {
-        string allPostsCacheKey = "allPosts";
+        string cacheKey = "posts:all";
 
-        if (!_cache.TryGetValue(allPostsCacheKey,
-                out IEnumerable<Post>? cachedPosts))
+        if (!_cache.TryGetValue(cacheKey,
+                out List<Post>? cachedPosts))
         {
             cachedPosts = await _postRepository.GetMany().ToListAsync();
-            _cache.Set(allPostsCacheKey, cachedPosts,
+            _cache.Set(cacheKey, cachedPosts,
                 new MemoryCacheEntryOptions()
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
@@ -142,17 +148,22 @@ public class PostsController : ControllerBase
             filteredPosts = filteredPosts.Where(p => p.UserId == userid.Value);
         }
 
-        var userIds = 
+        var userIds =
             filteredPosts.Select(p => p.UserId).Distinct()
                 .ToList(); // no duplicates
         // Map to UserDTO
-        var users = await _userRepository.GetMany().Where(u => userIds.Contains(u.Id))
+        var users = await _userRepository.GetMany()
+            .Where(u => userIds.Contains(u.Id))
             .Select(u => new UserDTO()
                 { Id = u.Id, Username = u.Username }).ToListAsync();
 
         if (!string.IsNullOrWhiteSpace(authorName))
         {
-            var author = users.FirstOrDefault(u => u.Username.Contains(authorName)); // Partial matching. Switch to == for exact match
+            var author =
+                users.FirstOrDefault(u =>
+                    u.Username
+                        .Contains(
+                            authorName)); // Partial matching. Switch to == for exact match
             if (author != null)
             {
                 filteredPosts = filteredPosts.Where(p => p.UserId == author.Id);
@@ -177,7 +188,12 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> GetSinglePostById(int id,
         [FromQuery] string? include)
     {
-        string cacheKey = $"post-{id}Include{include?.ToLower()}";
+        string cacheKey = $"posts:{id}";
+        if (!string.IsNullOrWhiteSpace(include) && include.Contains("comments",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            cacheKey = $"posts:{id}:comments";
+        }
 
         // cache check
         if (_cache.TryGetValue(cacheKey, out object? cachedResult))
@@ -195,7 +211,7 @@ public class PostsController : ControllerBase
         if (include != null &&
             include.Contains("comments", StringComparison.OrdinalIgnoreCase))
         {
-            var comments =await _commentRepository.GetMany()
+            var comments = await _commentRepository.GetMany()
                 .Where(c => c.PostId == id)
                 .ToListAsync();
             var userIds = comments.Select(c => c.UserId).Distinct().ToList();
@@ -245,20 +261,18 @@ public class PostsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeletePost(int id)
     {
-        
-        var comments = await _commentRepository.GetMany().Where(c => c.PostId == id)
+        var comments = await _commentRepository.GetMany()
+            .Where(c => c.PostId == id)
             .ToListAsync();
         foreach (var comment in comments)
         {
             await _commentRepository.DeleteAsync(comment.Id);
-            _cache.Remove($"comment-{comment.Id}");
+            InvalidateComment(comment.Id);
         }
-        _cache.Remove($"post-{id}Includecomments");
-        _cache.Remove("allComments");
 
         await _postRepository.DeleteAsync(id);
 
-        CacheInvalidate(id);
+        InvalidatePost(id);
 
         return NoContent();
     }

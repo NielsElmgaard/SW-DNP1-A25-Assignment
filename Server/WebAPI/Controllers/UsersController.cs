@@ -48,12 +48,23 @@ public class UsersController : ControllerBase
         }
     }
 
-    private void CacheInvalidate(int id)
+    private void InvalidateUser(int userId)
     {
-        _cache.Remove($"user-{id}");
-        _cache.Remove("allUsers");
-        _cache.Remove("allPosts");
-        _cache.Remove("allComments");
+        _cache.Remove($"users:{userId}");
+        _cache.Remove("users:all");
+    }
+
+    private void InvalidatePost(int postId)
+    {
+        _cache.Remove($"posts:{postId}");
+        _cache.Remove($"posts:{postId}:comments");
+        _cache.Remove("posts:all");
+    }
+
+    private void InvalidateComment(int commentId)
+    {
+        _cache.Remove($"comments:{commentId}");
+        _cache.Remove("comments:all");
     }
 
 
@@ -78,7 +89,7 @@ public class UsersController : ControllerBase
         User user = new(0, request.Username, request.Password);
         User created = await _userRepository.AddAsync(user);
 
-        CacheInvalidate(created.Id);
+        InvalidateUser(created.Id);
 
         UserDTO dto = new()
         {
@@ -158,47 +169,21 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDTO>> UpdateUser(int id,
         [FromBody] UpdateUserDTO request)
     {
-        if (string.IsNullOrWhiteSpace(request.Username))
-        {
-            throw new ArgumentException(
-                $"Username is required and cannot be empty");
-        }
-
         var user = await _userRepository.GetSingleAsync(id);
-        if (user.Username != request.Username)
-        {
-            await VerifyUserNameIsAvailableAsync(request.Username);
-        }
 
-        // In EditUser Blazor Page, it will still work when you don't fill in password
-        if (request.Password == null)
-        {
-            request.Password = user.Password;
-        }
+        string newPassword = string.IsNullOrWhiteSpace(request.Password)
+            ? user.Password
+            : request.Password;
 
+        var updated = new User(user.Id, request.Username, newPassword);
+        await _userRepository.UpdateAsync(updated);
 
-        if (string.IsNullOrWhiteSpace(request.Password))
-        {
-            throw new ArgumentException(
-                $"Password is required and cannot be empty");
-        }
+        InvalidateUser(id);
 
-        user = new(user.Id, request.Username, request.Password);
-
-
-        await _userRepository.UpdateAsync(user);
-
-        CacheInvalidate(id);
-
-        // Since username should be changed in post details
         var userPosts = await _postRepository.GetMany()
-            .Where(p => p.UserId == id)
-            .ToListAsync();
+            .Where(p => p.UserId == id).ToListAsync();
         foreach (var post in userPosts)
-        {
-            _cache.Remove($"post-{post.Id}Include");
-            _cache.Remove($"post-{post.Id}Includecomments");
-        }
+            InvalidatePost(post.Id);
 
         var dto = new UserDTO()
         {
@@ -214,12 +199,12 @@ public class UsersController : ControllerBase
         [FromQuery] string? startsWith,
         [FromQuery] string? sortBy)
     {
-        string allUsersCacheKey = "allUsers";
-        if (!_cache.TryGetValue(allUsersCacheKey,
-                out IEnumerable<User>? cachedUsers))
+        string cacheKey = "users:all";
+        if (!_cache.TryGetValue(cacheKey,
+                out List<User>? cachedUsers))
         {
             cachedUsers = await _userRepository.GetMany().ToListAsync();
-            _cache.Set(allUsersCacheKey, cachedUsers,
+            _cache.Set(cacheKey, cachedUsers,
                 new MemoryCacheEntryOptions()
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
@@ -264,7 +249,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetSingleUserById(int id)
     {
-        string cacheKey = $"user-{id}";
+        string cacheKey =  $"users:{id}";
 
         if (_cache.TryGetValue(cacheKey, out UserDTO? cachedUser))
         {
@@ -302,13 +287,11 @@ public class UsersController : ControllerBase
             foreach (var comment in commentsOnPost)
             {
                 await _commentRepository.DeleteAsync(comment.Id);
-                _cache.Remove($"comment-{comment.Id}");
+                InvalidateComment(comment.Id);
             }
 
             await _postRepository.DeleteAsync(post.Id);
-            _cache.Remove($"post-{post.Id}");
-            _cache.Remove($"post-{post.Id}Include");
-            _cache.Remove($"post-{post.Id}Includecomments");
+            InvalidatePost(post.Id);
         }
 
         // Delete comments of the user
@@ -318,13 +301,13 @@ public class UsersController : ControllerBase
         foreach (var comment in userComments)
         {
             await _commentRepository.DeleteAsync(comment.Id);
-            _cache.Remove($"comment-{comment.Id}");
+            InvalidateComment(comment.Id);
         }
 
         // Delete the user
         await _userRepository.DeleteAsync(id);
 
-        CacheInvalidate(id);
+        InvalidateUser(id);
 
         return NoContent();
     }
