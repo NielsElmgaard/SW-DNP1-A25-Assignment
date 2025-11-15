@@ -238,10 +238,10 @@ public class UsersController : ControllerBase
             }
         }
 
-        var users = await filteredUsers.Select(u => new UserDTO
+        var users = filteredUsers.Select(u => new UserDTO
         {
             Id = u.Id, Username = u.Username
-        }).ToListAsync();
+        }).ToList();
 
         return Ok(users);
     }
