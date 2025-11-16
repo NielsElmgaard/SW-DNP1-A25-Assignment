@@ -171,19 +171,28 @@ public class UsersController : ControllerBase
     {
         var user = await _userRepository.GetSingleAsync(id);
 
-        string newPassword = string.IsNullOrWhiteSpace(request.Password)
-            ? user.Password
-            : request.Password;
+        if (user.Username != request.Username)
+        {
+            await VerifyUserNameIsAvailableAsync(request.Username);
+        }
+        
+        user.Username = request.Username;
+        
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            user.Password = request.Password;
+        }
 
-        var updated = new User(user.Id, request.Username, newPassword);
-        await _userRepository.UpdateAsync(updated);
+        await _userRepository.UpdateAsync(user);
 
         InvalidateUser(id);
 
         var userPosts = await _postRepository.GetMany()
             .Where(p => p.UserId == id).ToListAsync();
         foreach (var post in userPosts)
+        {
             InvalidatePost(post.Id);
+        }
 
         var dto = new UserDTO()
         {

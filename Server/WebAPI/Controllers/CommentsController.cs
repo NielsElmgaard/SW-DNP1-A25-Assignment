@@ -90,25 +90,25 @@ public class CommentsController : ControllerBase
         }
 
         var comment = await _commentRepository.GetSingleAsync(id);
-
+        
         // Only Body updates
-        var updatedComment = new Comment(comment.Id, request.Body,
-            comment.PostId, comment.UserId);
-        await _commentRepository.UpdateAsync(updatedComment);
+        comment.Body = request.Body;
+
+        await _commentRepository.UpdateAsync(comment);
 
         // Cache invalidation
         InvalidateComment(id);
         InvalidatePost(comment.PostId);
 
         var author =
-            await _userRepository.GetSingleAsync(updatedComment.UserId);
+            await _userRepository.GetSingleAsync(comment.UserId);
 
         var dto = new CommentDTO()
         {
-            Id = updatedComment.Id,
-            Body = updatedComment.Body,
-            PostId = updatedComment.PostId,
-            UserId = updatedComment.UserId,
+            Id = comment.Id,
+            Body = comment.Body,
+            PostId = comment.PostId,
+            UserId = comment.UserId,
             Author = new UserDTO
                 { Id = author.Id, Username = author.Username }
         };
