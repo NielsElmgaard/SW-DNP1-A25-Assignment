@@ -93,22 +93,22 @@ public class PostsController : ControllerBase
         var post = await _postRepository.GetSingleAsync(id);
 
         // Only Title and Body updates
-        var updatedPost = new Post(post.Id, request.Title, request.Body,
-            post.UserId);
-
-        await _postRepository.UpdateAsync(updatedPost);
+        post.Title = request.Title;
+        post.Body = request.Body;
+        
+        await _postRepository.UpdateAsync(post);
 
         // Cache invalidation
         InvalidatePost(id);
 
-        var author = await _userRepository.GetSingleAsync(updatedPost.UserId);
+        var author = await _userRepository.GetSingleAsync(post.UserId);
 
         var dto = new PostDTO
         {
-            Id = updatedPost.Id,
-            Title = updatedPost.Title,
-            Body = updatedPost.Body,
-            UserId = updatedPost.UserId,
+            Id = post.Id,
+            Title = post.Title,
+            Body = post.Body,
+            UserId = post.UserId,
             Author = new UserDTO { Id = author.Id, Username = author.Username }
         };
 
