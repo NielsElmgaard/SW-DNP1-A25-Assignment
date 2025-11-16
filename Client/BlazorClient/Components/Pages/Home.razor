@@ -8,6 +8,10 @@
 <AuthorizeView>
     <Authorized>
         <h3>Hello, @context.User.Identity?.Name</h3>
+        <audio id="autoPlayAudio" controls autoplay loop muted
+               src="@MusicSource">
+            Your browser does not support the audio element.
+        </audio>
     </Authorized>
     <NotAuthorized>
         lol you are not logged in!
@@ -25,3 +29,8 @@
 </AuthorizeView>
 Here you can browse interesting posts.
 <button @onclick='() => NavMgr.NavigateTo("login")'>go to login</button>
+
+@code
+{
+    private string MusicSource = "036-1860165-Pierce Murphy-Athens.mp3";
+}
